@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+/* ============================================
+   GOOD ROOM HOUSE — Design Tokens
+   ============================================ */
+
+@theme inline {
+  /* --- Primary (Deep Navy) --- */
+  --color-primary: #1A2238;
+  --color-primary-dark: #0E1624;
+  --color-primary-light: #2E3A58;
+
+  /* --- Backgrounds / Neutrals --- */
+  --color-background: #F8F5ED;
+  --color-background-soft: #D4CBB8;
+  --color-background-dark: #3D2F2F;
+
+  /* --- Accents --- */
+  --color-accent: #A33E3E;
+  --color-accent-hover: #8E3434;
+  --color-accent-gold: #C4A26C;
+  --color-accent-olive: #3E4E3C;
+
+  /* --- Text --- */
+  --color-text: #2B2B2B;
+  --color-text-light: #4A4A4A;
+  --color-text-inverse: #F8F5ED;
+
+  /* --- Borders --- */
+  --color-border: #C4A26C;
+  --color-border-subtle: #D4CBB8;
+
+  /* --- Fonts --- */
+  --font-display: var(--font-cormorant-garamond), "Georgia", serif;
+  --font-body: var(--font-raleway), system-ui, sans-serif;
+
+  /* --- Shadows --- */
+  --shadow-soft: 0 2px 12px rgba(0, 0, 0, 0.08);
+  --shadow-deep: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* ============================================
+   Base Styles
+   ============================================ */
+
+body {
+  background-color: var(--color-primary-dark);
+  color: var(--color-text-inverse);
+  font-family: var(--font-body);
+  overflow-x: hidden;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Selection color */
+::selection {
+  background-color: var(--color-accent-gold);
+  color: var(--color-primary-dark);
+}
