@@ -12,6 +12,8 @@ export const properties: Property[] = [
     name: "Good Room House Jaipur",
     slug: "jaipur",
     location: "Walled City, Jaipur, Rajasthan",
+    address: "Sitaram Bhawan, Munshi Ramdas Ji Ka Rasta, near Ganga Pole, Walled City, Jaipur, Rajasthan 302002",
+    phone: "+91 XXXX XXXX XX",
     tagline: "A 300-Year-Old Haveli. Reborn.",
     description:
       "Nestled inside Jaipur's UNESCO-listed Walled City, Good Room House Jaipur lives within Sitaram Bhawan — a nearly 300-year-old haveli on Munshi Ramdas Ji Ka Rasta, near Ganga Pole, one of the original gateways to the Pink City. Once home to a Mathur Kayastha family of royal scribes, the haveli has been painstakingly restored over two years — original frescoed walls, hand-carved stone brackets, ornate jharokhas, and sunlit courtyards brought back to life, layer by layer. The result is a place where Mughal-Rajput architecture meets modern design sensibility. Every room is a quiet ode to heritage — softly lit, dressed in handcrafted details, with warm terracottas, soft creams, and touches of indigo inspired by Jaipur's sky.",
@@ -28,6 +30,7 @@ export const properties: Property[] = [
     images: [],
     restaurantIds: ["rest-angels", "rest-goodroom"],
     coordinates: { lat: 26.9239, lng: 75.8267 },
+    mapUrl: "https://www.google.com/maps?q=26.9239,75.8267",
   },
 ];
 
@@ -230,7 +233,7 @@ export const restaurants: Restaurant[] = [
     propertyId: "prop-jaipur",
     name: "Angels & Searchers",
     slug: "angels-and-searchers",
-    cuisine: "Modern Indian",
+    cuisine: "Wine & Italian Bar",
     description:
       "Chef-driven, not pretentious. Where the menu, music, and crowd become one experience. A place that takes Indian food seriously without taking itself seriously.",
     vibe: "Warm lighting, curated playlists, open kitchen energy. The kind of place where strangers end up sharing a table — and a bottle.",
@@ -242,7 +245,7 @@ export const restaurants: Restaurant[] = [
     propertyId: "prop-jaipur",
     name: "Good Room",
     slug: "good-room",
-    cuisine: "Global Small Plates",
+    cuisine: "Speakeasy & Mediterranean Bar",
     description:
       "Social dining at its finest. High aesthetic value, visually viral, but never try-hard. A place designed for sharing — food, stories, and evenings.",
     vibe: "Moody interiors, candlelit corners, a bar that knows your second drink before you do. Not a restaurant — an atmosphere.",

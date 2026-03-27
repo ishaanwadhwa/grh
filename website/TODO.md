@@ -111,6 +111,22 @@ Data to capture from day one (via analytics, not DB):
 
 ---
 
+## Zoho CRM Integration (Phase 2)
+
+Integration point for newsletters, guest management, and Members Club communication.
+
+- [ ] Set up Zoho CRM account + API credentials
+- [ ] Newsletter signup → create Zoho CRM contact (tag: "newsletter")
+- [ ] Booking confirmed → create Zoho CRM contact + deal (tag: "guest", link booking data)
+- [ ] Reservation confirmed → create Zoho CRM contact (tag: "diner")
+- [ ] Sync phone number + WhatsApp flag to Zoho contact fields
+- [ ] Members Club segmentation via custom tags/pipeline (visit count, last stay, preferences)
+- [ ] Zoho Campaigns integration for email marketing (event invites, new property announcements)
+- [ ] WhatsApp Business integration via Zoho for booking confirmations & guest communication
+- [ ] Contact form submissions → Zoho CRM lead
+
+---
+
 ## Polish & QA
 
 - [ ] Replace all placeholder images with real photography

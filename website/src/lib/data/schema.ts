@@ -16,12 +16,15 @@ export interface Property {
   name: string;
   slug: string;
   location: string;
+  address: string;
+  phone: string;
   tagline: string;
   description: string;
   amenities: string[];
   images: string[];
   restaurantIds: string[];
   coordinates?: { lat: number; lng: number };
+  mapUrl?: string;
 }
 
 // --- Room ---
