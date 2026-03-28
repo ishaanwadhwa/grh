@@ -1,18 +1,16 @@
-import { getRoomById } from "@/lib/data/mock";
+import { getRoomById } from "@/lib/supabase/queries";
 import type { Currency, PricingResponse } from "@/lib/data/schema";
 
-// Hardcoded exchange rates (INR base). Replace with live rates later.
 const EXCHANGE_RATES: Record<Currency, number> = {
   INR: 1,
-  USD: 0.012, // 1 INR ≈ 0.012 USD
-  GBP: 0.0095, // 1 INR ≈ 0.0095 GBP
+  USD: 0.012,
+  GBP: 0.0095,
 };
 
-const GST_RATE = 0.18; // 18% GST on room tariff
+const GST_RATE = 0.18;
 
 function convertCurrency(amountINR: number, currency: Currency): number {
   const converted = amountINR * EXCHANGE_RATES[currency];
-  // Round to 2 decimal places for USD/GBP, whole numbers for INR
   return currency === "INR" ? Math.round(converted) : Math.round(converted * 100) / 100;
 }
 
@@ -27,7 +25,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const room = getRoomById(roomId);
+  const room = await getRoomById(roomId);
   if (!room) {
     return Response.json({ error: "Room not found" }, { status: 404 });
   }
@@ -42,11 +40,6 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid date range" }, { status: 400 });
   }
 
-  // --- PRICING LOGIC ---
-  // MVP: flat base price per night
-  // Future: this is where the external pricing service gets called
-  // The interface stays the same — only the logic behind it changes
-
   const breakdown = [];
   let subtotalINR = 0;
 
@@ -54,12 +47,8 @@ export async function POST(request: Request) {
     const date = new Date(checkInDate);
     date.setDate(date.getDate() + i);
     const dateStr = date.toISOString().split("T")[0];
-
-    // MVP: every night is the same base price
-    // Future: per-night dynamic pricing goes here
     const nightPriceINR = room.basePricePerNight;
     subtotalINR += nightPriceINR;
-
     breakdown.push({
       date: dateStr,
       price: convertCurrency(nightPriceINR, currency as Currency),

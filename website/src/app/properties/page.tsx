@@ -1,13 +1,43 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import Button from "@/components/ui/Button";
 import SectionDivider from "@/components/ui/SectionDivider";
-import { properties } from "@/lib/data/mock";
+import { fetchProperties } from "@/lib/supabase/browser-queries";
+import ComingSoon from "@/components/sections/ComingSoon";
+import type { Property } from "@/lib/data/schema";
 
 export default function PropertiesPage() {
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    fetchProperties().then((data) => {
+      setProperties(data);
+      setLoaded(true);
+    });
+  }, []);
+
+  if (loaded && properties.length === 0) {
+    return (
+      <>
+        <Navbar />
+        <main className="min-h-screen bg-primary-dark pt-24">
+          <ComingSoon
+            subtitle="The Houses"
+            title="Our Houses Are Being Readied"
+            description="Each room is being dressed with intention. We'll be opening our doors very soon — follow along on Instagram for a first look."
+            backHref="/"
+          />
+        </main>
+        <Footer />
+      </>
+    );
+  }
+
   return (
     <>
       <Navbar />

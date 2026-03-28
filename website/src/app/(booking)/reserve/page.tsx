@@ -45,8 +45,8 @@ function ReservePageContent() {
         setLoading(false);
         return;
       }
-      const { getRestaurantBySlug } = await import("@/lib/data/mock");
-      const rest = getRestaurantBySlug(restaurantSlug);
+      const { fetchRestaurantBySlug } = await import("@/lib/supabase/browser-queries");
+      const rest = await fetchRestaurantBySlug(restaurantSlug);
       if (rest) setRestaurant(rest);
       setLoading(false);
     }

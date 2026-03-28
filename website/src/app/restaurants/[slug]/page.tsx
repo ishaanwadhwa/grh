@@ -19,8 +19,8 @@ export default function RestaurantPage() {
 
   useEffect(() => {
     async function load() {
-      const { getRestaurantBySlug } = await import("@/lib/data/mock");
-      const rest = getRestaurantBySlug(slug);
+      const { fetchRestaurantBySlug } = await import("@/lib/supabase/browser-queries");
+      const rest = await fetchRestaurantBySlug(slug);
       if (rest) setRestaurant(rest);
       setLoading(false);
     }

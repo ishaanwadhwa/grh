@@ -28,12 +28,12 @@ export default function PropertyPage() {
   useEffect(() => {
     async function load() {
       // Using mock data via import for now (could be API call)
-      const { getPropertyBySlug, getRoomsByPropertyId } = await import("@/lib/data/mock");
-      const prop = getPropertyBySlug(slug);
+      const { fetchPropertyBySlug, fetchRoomsByPropertyId } = await import("@/lib/supabase/browser-queries");
+      const prop = await fetchPropertyBySlug(slug);
       if (prop) {
         setProperty(prop);
-        // Show all rooms initially (without dates, as a preview)
-        setAvailableRooms(getRoomsByPropertyId(prop.id));
+        const allRooms = await fetchRoomsByPropertyId(prop.id);
+        setAvailableRooms(allRooms);
         booking.setProperty(slug);
       }
       setLoading(false);

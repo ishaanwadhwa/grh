@@ -1,7 +1,9 @@
-import Link from "next/link";
-import { properties } from "@/lib/data/mock";
+"use client";
 
-const property = properties[0];
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { fetchProperties } from "@/lib/supabase/browser-queries";
+import type { Property } from "@/lib/data/schema";
 
 const navLinks = [
   { href: "/properties", label: "The Houses" },
@@ -17,6 +19,14 @@ const socialLinks = [
 ];
 
 export default function Footer() {
+  const [property, setProperty] = useState<Property | null>(null);
+
+  useEffect(() => {
+    fetchProperties().then((props) => {
+      if (props.length > 0) setProperty(props[0]);
+    });
+  }, []);
+
   return (
     <footer className="border-t border-accent-gold/20 bg-background-dark">
       <div className="mx-auto max-w-6xl px-6 py-16">
@@ -34,24 +44,26 @@ export default function Footer() {
               community-led hospitality brand.
             </p>
 
-            <div className="mt-6 space-y-3">
-              <a
-                href={property.mapUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block text-sm leading-relaxed text-text-inverse/40 hover:text-accent-gold transition-colors duration-300"
-              >
-                {property.address}
-              </a>
-              <a
-                href={`tel:${property.phone.replace(/\s/g, "")}`}
-                className="block text-sm text-text-inverse/40 hover:text-accent-gold transition-colors duration-300"
-              >
-                {property.phone}
-              </a>
-            </div>
+            {property && (
+              <div className="mt-6 space-y-3">
+                <a
+                  href={property.mapUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-sm leading-relaxed text-text-inverse/40 hover:text-accent-gold transition-colors duration-300"
+                >
+                  {property.address}
+                </a>
+                <a
+                  href={`tel:${property.phone.replace(/\s/g, "")}`}
+                  className="block text-sm text-text-inverse/40 hover:text-accent-gold transition-colors duration-300"
+                >
+                  {property.phone}
+                </a>
+              </div>
+            )}
 
-            {property.coordinates && (
+            {property?.coordinates && (
               <div className="mt-6 w-full max-w-xs aspect-[4/3] border border-accent-gold/10 overflow-hidden">
                 <iframe
                   src={`https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d3000!2d${property.coordinates.lng}!3d${property.coordinates.lat}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1sen!2sin!4v1`}

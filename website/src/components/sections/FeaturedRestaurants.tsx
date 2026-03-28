@@ -1,30 +1,22 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import Button from "@/components/ui/Button";
 import SectionDivider from "@/components/ui/SectionDivider";
-
-const restaurants = [
-  {
-    name: "Angels & Searchers",
-    cuisine: "Wine & Italian Bar",
-    description:
-      "Natural wines, handmade pasta, and the kind of conversation that only happens after the second bottle.",
-    image: null,
-    slug: "angels-and-searchers",
-  },
-  {
-    name: "Good Room",
-    cuisine: "Speakeasy & Mediterranean Bar",
-    description:
-      "A hidden bar where the cocktails are Mediterranean, the music is right, and the door stays closed to the wrong crowd.",
-    image: "/images/restaurants/restaurant-two/jaipurimg1.png",
-    slug: "good-room",
-  },
-];
+import { fetchRestaurants } from "@/lib/supabase/browser-queries";
+import type { Restaurant } from "@/lib/data/schema";
 
 export default function FeaturedRestaurants() {
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+
+  useEffect(() => {
+    fetchRestaurants(true).then(setRestaurants); // featuredOnly = true
+  }, []);
+
+  if (restaurants.length === 0) return null;
+
   return (
     <section className="py-24 md:py-32 bg-primary-dark">
       <div className="mx-auto max-w-6xl px-6">
@@ -47,7 +39,7 @@ export default function FeaturedRestaurants() {
           transition={{ duration: 0.7, delay: 0.1 }}
           className="text-center font-display text-3xl md:text-5xl text-text-inverse mb-6"
         >
-          Not just restaurants
+          Two rooms. Two moods.
         </motion.h2>
 
         <motion.p
@@ -64,7 +56,7 @@ export default function FeaturedRestaurants() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {restaurants.map((restaurant, i) => (
             <motion.div
-              key={restaurant.name}
+              key={restaurant.id}
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-100px" }}
@@ -73,9 +65,9 @@ export default function FeaturedRestaurants() {
             >
               {/* Image */}
               <div className="aspect-[3/2] bg-primary-light/20 relative overflow-hidden">
-                {restaurant.image ? (
+                {restaurant.images.length > 0 ? (
                   <Image
-                    src={restaurant.image}
+                    src={restaurant.images[0]}
                     alt={restaurant.name}
                     fill
                     className="object-cover group-hover:scale-105 transition-transform duration-700"

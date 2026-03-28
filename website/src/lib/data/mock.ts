@@ -29,8 +29,8 @@ export const properties: Property[] = [
     ],
     images: [],
     restaurantIds: ["rest-angels", "rest-goodroom"],
-    coordinates: { lat: 26.9239, lng: 75.8267 },
-    mapUrl: "https://www.google.com/maps?q=26.9239,75.8267",
+    coordinates: { lat: 26.926671, lng: 75.8270191 },
+    mapUrl: "https://www.google.com/maps/place/Bloom+Boutique+%7C+Chelon+Haveli/@26.926671,75.8270191,17z/data=!3m1!4b1!4m6!3m5!1s0x396db115f8af2d15:0x4a19b477cec32bfc!8m2!3d26.926671!4d75.8270191!16s%2Fg%2F11s8y21qx9",
   },
 ];
 

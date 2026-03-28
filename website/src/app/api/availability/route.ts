@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getPropertyBySlug, getAvailableRooms } from "@/lib/data/mock";
+import { getPropertyBySlug, getAvailableRooms } from "@/lib/supabase/queries";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -14,12 +14,11 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const property = getPropertyBySlug(propertySlug);
+  const property = await getPropertyBySlug(propertySlug);
   if (!property) {
     return Response.json({ error: "Property not found" }, { status: 404 });
   }
 
-  // Validate dates
   const checkInDate = new Date(checkIn);
   const checkOutDate = new Date(checkOut);
   const today = new Date();
@@ -36,7 +35,7 @@ export async function GET(request: NextRequest) {
     (checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)
   );
 
-  const availableRooms = getAvailableRooms(property.id, checkIn, checkOut);
+  const availableRooms = await getAvailableRooms(property.id, checkIn, checkOut);
 
   return Response.json({
     propertyId: property.id,

@@ -1,6 +1,10 @@
-import { NextRequest } from "next/server";
-import { bookings, getRoomById, isRoomAvailable } from "@/lib/data/mock";
-import type { Booking } from "@/lib/data/schema";
+import {
+  createBooking,
+  getBookings,
+  cancelBooking,
+  getRoomById,
+  getAvailableRooms,
+} from "@/lib/supabase/queries";
 
 export async function POST(request: Request) {
   const body = await request.json();
@@ -14,64 +18,63 @@ export async function POST(request: Request) {
     currency,
     guestName,
     guestEmail,
+    guestPhone,
+    guestPhoneCode,
+    isWhatsApp,
     specialRequests,
   } = body;
 
-  // Validate required fields
   if (!roomId || !propertyId || !checkIn || !checkOut || !guests || !totalAmount || !guestName || !guestEmail) {
     return Response.json({ error: "Missing required booking fields" }, { status: 400 });
   }
 
-  // Validate room exists
-  const room = getRoomById(roomId);
+  const room = await getRoomById(roomId);
   if (!room) {
     return Response.json({ error: "Room not found" }, { status: 404 });
   }
 
-  // Validate availability (prevent double booking)
-  if (!isRoomAvailable(roomId, checkIn, checkOut)) {
+  // Check availability
+  const available = await getAvailableRooms(propertyId, checkIn, checkOut);
+  if (!available.some((r) => r.id === roomId)) {
     return Response.json({ error: "Room is no longer available for these dates" }, { status: 409 });
   }
 
-  // Validate guest count
   if (guests > room.capacity) {
-    return Response.json(
-      { error: `Room capacity is ${room.capacity} guests` },
-      { status: 400 }
-    );
+    return Response.json({ error: `Room capacity is ${room.capacity} guests` }, { status: 400 });
   }
 
-  // Create booking
-  const booking: Booking = {
-    id: `BK-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`,
-    roomId,
-    propertyId,
-    userId: "mock-user", // Will be real user ID when auth is connected
-    guestName,
-    guestEmail,
-    checkIn,
-    checkOut,
-    guests,
-    totalAmount,
-    currency: currency || "INR",
-    status: "confirmed", // Mock: skip pending → confirmed (no real payment yet)
-    source: "website",
-    specialRequests: specialRequests || undefined,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+  try {
+    const booking = await createBooking({
+      roomId,
+      propertyId,
+      guestName,
+      guestEmail,
+      guestPhone,
+      guestPhoneCode,
+      isWhatsApp,
+      checkIn,
+      checkOut,
+      guests,
+      totalAmount,
+      currency: currency || "INR",
+      specialRequests,
+    });
 
-  bookings.push(booking);
-
-  return Response.json({ booking }, { status: 201 });
+    return Response.json({ booking }, { status: 201 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Booking failed";
+    return Response.json({ error: message }, { status: 500 });
+  }
 }
 
-export async function GET(request: NextRequest) {
-  // In production: filter by authenticated user ID
-  // Mock: return all bookings
-  const activeBookings = bookings.filter((b) => b.status !== "cancelled");
-
-  return Response.json({ bookings: activeBookings });
+export async function GET() {
+  try {
+    const bookings = await getBookings();
+    return Response.json({ bookings });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to fetch bookings";
+    return Response.json({ error: message }, { status: 500 });
+  }
 }
 
 export async function PATCH(request: Request) {
@@ -82,18 +85,14 @@ export async function PATCH(request: Request) {
     return Response.json({ error: "Missing bookingId or action" }, { status: 400 });
   }
 
-  const booking = bookings.find((b) => b.id === bookingId);
-  if (!booking) {
-    return Response.json({ error: "Booking not found" }, { status: 404 });
-  }
-
   if (action === "cancel") {
-    if (booking.status === "cancelled") {
-      return Response.json({ error: "Booking is already cancelled" }, { status: 400 });
+    try {
+      const booking = await cancelBooking(bookingId);
+      return Response.json({ booking });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Cancel failed";
+      return Response.json({ error: message }, { status: 500 });
     }
-    booking.status = "cancelled";
-    booking.updatedAt = new Date().toISOString();
-    return Response.json({ booking });
   }
 
   return Response.json({ error: "Unknown action" }, { status: 400 });

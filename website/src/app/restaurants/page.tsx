@@ -1,14 +1,44 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import Button from "@/components/ui/Button";
 import SectionDivider from "@/components/ui/SectionDivider";
-import { restaurants } from "@/lib/data/mock";
+import { fetchRestaurants } from "@/lib/supabase/browser-queries";
+import ComingSoon from "@/components/sections/ComingSoon";
+import type { Restaurant } from "@/lib/data/schema";
 
 export default function RestaurantsPage() {
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    fetchRestaurants().then((data) => {
+      setRestaurants(data);
+      setLoaded(true);
+    });
+  }, []);
+
+  if (loaded && restaurants.length === 0) {
+    return (
+      <>
+        <Navbar />
+        <main className="min-h-screen bg-primary-dark pt-24">
+          <ComingSoon
+            subtitle="Dining"
+            title="The Tables Are Being Set"
+            description="Two restaurants, two very different evenings. We're getting everything just right — follow us on Instagram for a first look at the menu."
+            backHref="/"
+          />
+        </main>
+        <Footer />
+      </>
+    );
+  }
+
   return (
     <>
       <Navbar />
