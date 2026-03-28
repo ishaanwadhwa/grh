@@ -70,14 +70,14 @@ export default function AdminBookingsPage() {
     Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000);
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-4 md:p-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
           <h1 className="font-display text-2xl text-text">Bookings</h1>
           <p className="mt-1 text-sm text-text/40">{bookings.length} total</p>
         </div>
         {/* Filter */}
-        <div className="flex gap-1 border border-border-subtle p-0.5">
+        <div className="flex flex-wrap gap-1 border border-border-subtle p-0.5">
           {["all", "confirmed", "pending", "cancelled", "completed"].map((s) => (
             <button
               key={s}

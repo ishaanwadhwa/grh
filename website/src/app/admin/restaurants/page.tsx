@@ -77,8 +77,8 @@ export default function AdminRestaurantsPage() {
   };
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-4 md:p-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
           <h1 className="font-display text-2xl text-text">Restaurants</h1>
           <p className="mt-1 text-sm text-text/40">
@@ -87,7 +87,7 @@ export default function AdminRestaurantsPage() {
         </div>
         <Link
           href="/admin/restaurants/new"
-          className="px-4 py-2 bg-text text-text-inverse text-xs uppercase tracking-widest hover:bg-text/80 transition-colors"
+          className="px-4 py-2 bg-text text-text-inverse text-xs uppercase tracking-widest hover:bg-text/80 transition-colors self-start shrink-0"
         >
           + Add Restaurant
         </Link>
@@ -99,71 +99,59 @@ export default function AdminRestaurantsPage() {
         ) : restaurants.length === 0 ? (
           <p className="p-8 text-sm text-text/30">No restaurants yet.</p>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border-subtle">
-                <th className="px-5 py-3 text-left text-xs uppercase tracking-widest text-text/40 w-20">Order</th>
-                <th className="px-5 py-3 text-left text-xs uppercase tracking-widest text-text/40">Name</th>
-                <th className="px-5 py-3 text-left text-xs uppercase tracking-widest text-text/40">Cuisine</th>
-                <th className="px-5 py-3 text-left text-xs uppercase tracking-widest text-text/40">Status</th>
-                <th className="px-5 py-3 text-left text-xs uppercase tracking-widest text-text/40">Featured</th>
-                <th className="px-5 py-3 text-right text-xs uppercase tracking-widest text-text/40">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {restaurants.map((r, i) => (
-                <tr key={r.id} className="border-b border-border-subtle/50 hover:bg-background transition-colors">
-                  {/* Order controls */}
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs text-text/20 w-5 text-center">{i + 1}</span>
-                      <div className="flex flex-col">
-                        <button
-                          onClick={() => move(i, "up")}
-                          disabled={i === 0 || saving}
-                          className="text-text/25 hover:text-text disabled:opacity-10 transition-colors leading-none px-1"
-                          title="Move up"
-                        >
-                          ▲
-                        </button>
-                        <button
-                          onClick={() => move(i, "down")}
-                          disabled={i === restaurants.length - 1 || saving}
-                          className="text-text/25 hover:text-text disabled:opacity-10 transition-colors leading-none px-1"
-                          title="Move down"
-                        >
-                          ▼
-                        </button>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3 font-medium text-text">{r.name}</td>
-                  <td className="px-5 py-3 text-text/50">{r.cuisine}</td>
-                  <td className="px-5 py-3">
-                    <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 ${r.is_active ? "bg-green-50 text-green-600" : "bg-red-50 text-red-500"}`}>
+          <div className="divide-y divide-border-subtle/50">
+            {restaurants.map((r, i) => (
+              <div key={r.id} className="flex items-center gap-3 px-4 py-3">
+                {/* Order controls */}
+                <div className="flex flex-col items-center shrink-0 w-8">
+                  <button
+                    onClick={() => move(i, "up")}
+                    disabled={i === 0 || saving}
+                    className="text-text/25 hover:text-text disabled:opacity-10 transition-colors leading-none py-0.5 text-xs"
+                  >
+                    ▲
+                  </button>
+                  <span className="text-[10px] text-text/20 my-0.5">{i + 1}</span>
+                  <button
+                    onClick={() => move(i, "down")}
+                    disabled={i === restaurants.length - 1 || saving}
+                    className="text-text/25 hover:text-text disabled:opacity-10 transition-colors leading-none py-0.5 text-xs"
+                  >
+                    ▼
+                  </button>
+                </div>
+
+                {/* Name + meta */}
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-text text-sm truncate">{r.name}</p>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                    <span className="text-xs text-text/40">{r.cuisine}</span>
+                    <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 ${r.is_active ? "bg-green-50 text-green-600" : "bg-red-50 text-red-500"}`}>
                       {r.is_active ? "Active" : "Hidden"}
                     </span>
-                  </td>
-                  <td className="px-5 py-3">
                     {r.featured && (
-                      <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 bg-accent-gold/10 text-accent-gold">
+                      <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 bg-accent-gold/10 text-accent-gold">
                         Homepage
                       </span>
                     )}
-                  </td>
-                  <td className="px-5 py-3">
-                    <div className="flex items-center justify-end gap-4">
-                      <Link href={`/admin/restaurants/${r.id}`} className="text-xs text-text/50 hover:text-text">Edit</Link>
-                      <button onClick={() => setDeleteTarget(r)} className="text-xs text-accent hover:underline">Delete</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-3 shrink-0">
+                  <Link href={`/admin/restaurants/${r.id}`} className="text-xs text-text/50 hover:text-text transition-colors">
+                    Edit
+                  </Link>
+                  <button onClick={() => setDeleteTarget(r)} className="text-xs text-accent hover:underline">
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
         {saving && (
-          <p className="px-5 py-2 text-xs text-text/30 border-t border-border-subtle">Saving order...</p>
+          <p className="px-4 py-2 text-xs text-text/30 border-t border-border-subtle">Saving order...</p>
         )}
       </div>
 

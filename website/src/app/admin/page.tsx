@@ -98,7 +98,7 @@ export default function AdminDashboard() {
   }, []);
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="mb-8">
         <h1 className="font-display text-2xl text-text">Dashboard</h1>
         <p className="mt-1 text-sm text-text/40">Good Room House — Admin Overview</p>

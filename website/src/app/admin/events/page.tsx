@@ -49,15 +49,15 @@ export default function AdminEventsPage() {
   };
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-4 md:p-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
           <h1 className="font-display text-2xl text-text">Events</h1>
           <p className="mt-1 text-sm text-text/40">Manage gatherings and experiences</p>
         </div>
         <Link
           href="/admin/events/new"
-          className="px-4 py-2 bg-text text-text-inverse text-xs uppercase tracking-widest hover:bg-text/80 transition-colors"
+          className="px-4 py-2 bg-text text-text-inverse text-xs uppercase tracking-widest hover:bg-text/80 transition-colors self-start shrink-0"
         >
           + Add Event
         </Link>
