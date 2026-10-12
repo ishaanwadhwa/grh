@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import Navbar from "@/components/layout/Navbar";
 import Button from "@/components/ui/Button";
 import SingleDatePicker from "@/components/ui/SingleDatePicker";
-import TimePicker from "@/components/ui/TimePicker";
+import ReservationSlotSelect, { type SelectedReservationSlot } from "@/components/sections/ReservationSlotSelect";
 import GuestCounter from "@/components/ui/GuestCounter";
 import PhoneInput from "@/components/ui/PhoneInput";
 import type { Restaurant } from "@/lib/data/schema";
@@ -30,7 +30,7 @@ function ReservePageContent() {
 
   // Form state
   const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
+  const [selectedSlot, setSelectedSlot] = useState<SelectedReservationSlot | null>(null);
   const [partySize, setPartySize] = useState(2);
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
@@ -53,7 +53,7 @@ function ReservePageContent() {
     load();
   }, [restaurantSlug]);
 
-  const canSubmit = date && time && guestName.trim() && guestEmail.trim();
+  const canSubmit = date && selectedSlot && guestName.trim() && guestEmail.trim();
 
   const handleSubmit = async () => {
     if (!canSubmit || !restaurant) return;
@@ -65,11 +65,15 @@ function ReservePageContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           restaurantSlug: restaurant.slug,
+          serviceId: selectedSlot?.serviceId,
           date,
-          time,
+          time: selectedSlot?.time,
           partySize,
           guestName,
           guestEmail,
+          guestPhone: phoneNumber,
+          guestPhoneCode: phoneCode,
+          isWhatsApp,
           specialRequests: specialRequests || undefined,
         }),
       });
@@ -78,7 +82,7 @@ function ReservePageContent() {
 
       if (res.ok) {
         router.push(
-          `/reserve/confirmation?id=${data.reservation.id}&restaurant=${restaurant.name}`
+          `/reserve/confirmation?restaurant=${encodeURIComponent(restaurant.name)}`
         );
       } else {
         alert(data.error || "Reservation failed. Please try again.");
@@ -89,8 +93,6 @@ function ReservePageContent() {
       setSubmitting(false);
     }
   };
-
-  const today = new Date().toISOString().split("T")[0];
 
   if (loading) {
     return (
@@ -142,16 +144,27 @@ function ReservePageContent() {
             {/* Date */}
             <SingleDatePicker
               value={date}
-              onChange={setDate}
+              onChange={(nextDate) => {
+                setDate(nextDate);
+                setSelectedSlot(null);
+              }}
               label="Date"
               placeholder="Select date"
             />
 
-            {/* Time */}
-            <TimePicker value={time} onChange={setTime} />
+            <ReservationSlotSelect
+              restaurantSlug={restaurant.slug}
+              date={date}
+              partySize={partySize}
+              value={selectedSlot}
+              onChange={setSelectedSlot}
+            />
 
             {/* Party size */}
-            <GuestCounter value={partySize} max={20} onChange={setPartySize} />
+            <GuestCounter value={partySize} max={20} onChange={(size) => {
+              setPartySize(size);
+              setSelectedSlot(null);
+            }} />
 
             {/* Name */}
             <div>

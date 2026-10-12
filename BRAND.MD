@@ -1,4 +1,4 @@
-# GOOD ROOM HOUSE
+# SUNDAY ROSE CLUB
 
 **Product Requirements Document (PRD)**
 
@@ -8,7 +8,7 @@ A boutique, experience-first, design-forward micro resort & community-led hospit
 
 ## 1. Overview
 
-**Product Name:** GOOD ROOM HOUSE
+**Product Name:** SUNDAY ROSE CLUB
 
 **Category:** Boutique Micro Resort + Restaurants + Cultural Community Platform
 
@@ -16,7 +16,7 @@ A boutique, experience-first, design-forward micro resort & community-led hospit
 
 ### Core Idea
 
-GOOD ROOM HOUSE is a **hospitality brand** — not a single property. It is the parent identity behind a growing network of micro resorts, restaurants, and community spaces. Each location is an expression of the brand, rooted in local context but united by a shared philosophy.
+SUNDAY ROSE CLUB is a **hospitality brand** — not a single property. It is the parent identity behind a growing network of micro resorts, restaurants, and community spaces. Each location is an expression of the brand, rooted in local context but united by a shared philosophy.
 
 The brand is a curated social universe for people with taste. It blends hospitality, design, food, and community into one cohesive, emotionally resonant experience.
 
@@ -44,7 +44,7 @@ To redefine luxury hospitality in India by making it:
 
 Luxury is no longer about marble and excess. It is about taste, intimacy, and energy.
 
-**GOOD ROOM HOUSE rejects:**
+**SUNDAY ROSE CLUB rejects:**
 - Generic luxury hotels
 - Soulless Airbnbs
 - Overly formal fine dining
@@ -112,7 +112,7 @@ They:
 
 This is the moat.
 
-GOOD ROOM HOUSE is building a soft-membership, high-taste community.
+SUNDAY ROSE CLUB is building a soft-membership, high-taste community.
 
 **Mechanics:**
 - No formal "membership wall" initially
@@ -275,7 +275,7 @@ This is not a faceless brand.
 
 ## 12. Non-Goals (Important)
 
-GOOD ROOM HOUSE is NOT trying to:
+SUNDAY ROSE CLUB is NOT trying to:
 - Scale like a hotel chain
 - Appeal to everyone
 - Be overly luxurious in a traditional sense

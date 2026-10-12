@@ -137,7 +137,7 @@ export default function RestaurantsPage() {
                       </div>
 
                       <div className="sm:ml-auto flex gap-3">
-                        <Button href={`/restaurants/${restaurant.slug}`} variant="ghost">
+                        <Button href={`/${restaurant.slug}`} variant="ghost">
                           Explore
                         </Button>
                         <Button

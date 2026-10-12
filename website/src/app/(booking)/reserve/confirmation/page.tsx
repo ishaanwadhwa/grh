@@ -17,7 +17,6 @@ export default function ReserveConfirmationPage() {
 
 function ReserveConfirmationContent() {
   const searchParams = useSearchParams();
-  const reservationId = searchParams.get("id");
   const restaurantName = searchParams.get("restaurant");
 
   return (
@@ -54,21 +53,6 @@ function ReserveConfirmationContent() {
             <span className="text-accent-gold">{restaurantName || "the restaurant"}</span> has been
             reserved. See you there.
           </motion.p>
-
-          {/* Reservation reference */}
-          {reservationId && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.4 }}
-              className="mt-8 border border-accent-gold/20 p-6 inline-block"
-            >
-              <p className="text-xs uppercase tracking-widest text-accent-gold/60 font-body mb-2">
-                Reservation Reference
-              </p>
-              <p className="font-display text-2xl text-accent-gold">{reservationId}</p>
-            </motion.div>
-          )}
 
           {/* Actions */}
           <motion.div

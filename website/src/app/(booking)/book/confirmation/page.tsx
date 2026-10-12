@@ -51,7 +51,7 @@ function BookConfirmationContent() {
             transition={{ duration: 0.7, delay: 0.3 }}
             className="mt-4 text-base text-text-inverse/50"
           >
-            Your stay at Good Room House has been confirmed. We can&apos;t wait to welcome you.
+            Your stay with Sunday Rose Club has been confirmed. We can&apos;t wait to welcome you.
           </motion.p>
 
           {/* Booking reference */}

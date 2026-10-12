@@ -76,6 +76,7 @@ function mapRestaurant(row: any): Restaurant {
     vibe: row.vibe,
     hours: row.hours,
     images: row.images || [],
+    instagramUrl: row.instagram_url || null,
   };
 }
 

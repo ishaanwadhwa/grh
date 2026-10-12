@@ -14,8 +14,8 @@ const navLinks = [
 ];
 
 const socialLinks = [
-  { href: "https://instagram.com/goodroomhouse", label: "Instagram" },
-  { href: "https://twitter.com/goodroomhouse", label: "Twitter" },
+  { href: "https://instagram.com/sundayroseclub", label: "Instagram" },
+  { href: "https://twitter.com/sundayroseclub", label: "Twitter" },
 ];
 
 export default function Footer() {
@@ -37,7 +37,7 @@ export default function Footer() {
               href="/"
               className="font-display text-lg tracking-[0.2em] text-text-inverse/80"
             >
-              GOOD ROOM HOUSE
+              SUNDAY ROSE CLUB
             </Link>
             <p className="mt-4 text-sm leading-relaxed text-text-inverse/50 max-w-xs">
               A boutique, experience-first, design-forward micro resort &
@@ -120,10 +120,10 @@ export default function Footer() {
 
             <div className="mt-8">
               <a
-                href="mailto:hello@goodroomhouse.com"
+                href="mailto:hello@sundayroseclub.com"
                 className="text-sm text-accent-gold/70 hover:text-accent-gold transition-colors duration-300"
               >
-                hello@goodroomhouse.com
+                hello@sundayroseclub.com
               </a>
             </div>
           </div>
@@ -132,7 +132,7 @@ export default function Footer() {
         {/* Bottom */}
         <div className="mt-16 pt-6 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-xs text-text-inverse/30">
-            &copy; {new Date().getFullYear()} Good Room House. All rights
+            &copy; {new Date().getFullYear()} Sunday Rose Club. All rights
             reserved.
           </p>
           <div className="flex gap-6">

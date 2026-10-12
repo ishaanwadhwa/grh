@@ -60,7 +60,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Password must be at least 4 characters" }, { status: 400 });
   }
 
-  const email = username.includes("@") ? username : `${username}@goodroomhouse.com`;
+  const email = username.includes("@") ? username : `${username}@sundayroseclub.com`;
 
   const adminClient = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

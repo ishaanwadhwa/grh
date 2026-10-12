@@ -1,4 +1,4 @@
-# GOOD ROOM HOUSE — Tech Stack
+# SUNDAY ROSE CLUB — Tech Stack
 
 **Version:** 0.1 (Draft)
 **Last Updated:** 2026-03-26
@@ -33,7 +33,7 @@
 - **API routes** — Backend logic lives in the same codebase. No separate server to manage for MVP.
 - **Ecosystem** — Largest React framework community. Every library works with it.
 
-**Why not Astro:** Great for static sites, but Good Room House has dynamic flows (bookings, auth, payments). Astro's island architecture adds friction for interactive pages.
+**Why not Astro:** Great for static sites, but Sunday Rose Club has dynamic flows (bookings, auth, payments). Astro's island architecture adds friction for interactive pages.
 
 **Why not Remix:** Solid framework, but smaller ecosystem, less hosting flexibility, and Next.js has stronger momentum and tooling.
 
@@ -212,7 +212,7 @@ Browser → Next.js (Vercel) → Supabase (DB + Auth + Storage)
 ## Project Structure (Proposed)
 
 ```
-goodroom/
+sunday-rose-club/
 ├── src/
 │   ├── app/                    # Next.js App Router pages
 │   │   ├── (marketing)/        # Public pages (home, about, contact)

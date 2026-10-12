@@ -40,7 +40,7 @@ export default function BrandStory() {
           transition={{ duration: 0.7, delay: 0.2 }}
           className="mt-8 text-base md:text-lg leading-relaxed text-text-inverse/50 max-w-2xl mx-auto"
         >
-          Good Room House is a hospitality brand built for people who care about
+          Sunday Rose Club is a hospitality brand built for people who care about
           aesthetics and energy. We blend boutique stays, chef-driven dining, and
           cultural community into spaces that feel like someone interesting lives
           here.

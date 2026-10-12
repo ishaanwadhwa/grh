@@ -1,4 +1,4 @@
-# GOOD ROOM HOUSE — Website PRD
+# SUNDAY ROSE CLUB — Website PRD
 
 **Version:** 0.1 (Draft)
 **Last Updated:** 2026-03-26
@@ -7,7 +7,7 @@
 
 ## 1. Purpose
 
-The Good Room House website is the **digital front door** of the brand. It should do three things:
+The Sunday Rose Club website is the **digital front door** of the brand. It should do three things:
 
 1. **Seduce** — Make people feel something the moment they land. This is a design-forward brand; the website must reflect that instantly.
 2. **Convert** — Let people browse properties, book stays, reserve tables, and pay — seamlessly.
@@ -45,7 +45,7 @@ The website is NOT a generic hotel booking site. It should feel like an extensio
 
 **Content:**
 - Hero section — full-bleed visual (video or high-res imagery), brand tagline
-- Brief brand story — what Good Room House is (pulled from brand DNA)
+- Brief brand story — what Sunday Rose Club is (pulled from brand DNA)
 - Featured properties — card-based preview of locations (Jaipur first)
 - Featured restaurants — visual tease
 - Upcoming events or community highlights (if available)
@@ -57,7 +57,7 @@ The website is NOT a generic hotel booking site. It should feel like an extensio
 ---
 
 ### 3.2 Properties (Browse All)
-**Purpose:** Show all Good Room House locations at a glance.
+**Purpose:** Show all Sunday Rose Club locations at a glance.
 
 **Approach:** The homepage highlights one featured property (Jaipur at launch). A separate Properties page lists all locations — even if there's only one initially, it establishes the multi-property brand structure from day one. Reference: [Sacred House](https://www.sacredhouse.com.tr/en) for the editorial, immersive property presentation style.
 
@@ -164,7 +164,7 @@ The website is NOT a generic hotel booking site. It should feel like an extensio
 **Purpose:** Tell the brand story. Introduce the founder. Build emotional connection.
 
 **Content:**
-- The "why" behind Good Room House
+- The "why" behind Sunday Rose Club
 - Founder story — personal, visible, opinionated (per brand DNA)
 - Philosophy & values
 - Visual storytelling (images of the team, the build process, the spaces)

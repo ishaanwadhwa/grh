@@ -26,6 +26,8 @@ interface TimePickerProps {
   label?: string;
   openHour?: number;
   closeHour?: number;
+  variant?: "dark" | "light";
+  extraTimes?: string[];
 }
 
 export default function TimePicker({
@@ -34,10 +36,13 @@ export default function TimePicker({
   label = "Time",
   openHour = 12,
   closeHour = 23,
+  variant = "dark",
+  extraTimes = [],
 }: TimePickerProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const slots = generateTimeSlots(openHour, closeHour);
+  const slots = [...new Set([...generateTimeSlots(openHour, closeHour), ...extraTimes])].sort();
+  const isLight = variant === "light";
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -51,7 +56,7 @@ export default function TimePicker({
 
   return (
     <div ref={ref} className="relative">
-      <label className="block text-xs uppercase tracking-widest text-accent-gold/50 font-body font-medium mb-2">
+      <label className={`block text-xs font-body font-medium mb-2 ${isLight ? "text-text/50" : "uppercase tracking-widest text-accent-gold/50"}`}>
         {label}
       </label>
 
@@ -59,20 +64,22 @@ export default function TimePicker({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className={`w-full text-left border px-5 py-4 transition-all duration-200 ${
-          open
-            ? "border-accent-gold/50 bg-accent-gold/5"
-            : "border-accent-gold/20 hover:border-accent-gold/35"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className={`w-full text-left border transition-all duration-200 ${isLight ? "bg-white px-4 py-2.5" : "px-5 py-4"} ${
+          isLight
+            ? open ? "border-accent-gold/60" : "border-border-subtle hover:border-accent-gold/50"
+            : open ? "border-accent-gold/50 bg-accent-gold/5" : "border-accent-gold/20 hover:border-accent-gold/35"
         }`}
       >
-        <span className={`block text-sm font-body ${value ? "text-text-inverse" : "text-text-inverse/25"}`}>
+        <span className={`block text-sm font-body ${isLight ? (value ? "text-text" : "text-text/25") : (value ? "text-text-inverse" : "text-text-inverse/25")}`}>
           {value ? formatTime(value) : "Select time"}
         </span>
       </button>
 
       {/* Dropdown grid */}
       {open && (
-        <div className="absolute z-50 mt-2 left-0 w-full sm:w-[300px] border border-accent-gold/20 bg-primary-dark shadow-deep p-4 max-h-[280px] overflow-y-auto">
+        <div role="listbox" className={`absolute z-50 mt-2 left-0 w-full sm:w-[300px] border shadow-deep p-4 max-h-[280px] overflow-y-auto ${isLight ? "border-border-subtle bg-white" : "border-accent-gold/20 bg-primary-dark"}`}>
           <div className="grid grid-cols-3 gap-1.5">
             {slots.map((slot) => (
               <button
@@ -82,11 +89,13 @@ export default function TimePicker({
                   onChange(slot);
                   setOpen(false);
                 }}
+                role="option"
+                aria-selected={value === slot}
                 className={`
                   px-3 py-2.5 text-xs font-body transition-all duration-150
                   ${value === slot
                     ? "bg-accent-gold text-primary-dark font-medium"
-                    : "text-text-inverse/50 hover:bg-accent-gold/10 hover:text-text-inverse"
+                    : isLight ? "text-text/60 hover:bg-background hover:text-text" : "text-text-inverse/50 hover:bg-accent-gold/10 hover:text-text-inverse"
                   }
                 `}
               >

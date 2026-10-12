@@ -21,16 +21,29 @@ export default function AdminLoginPage() {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
-    // Accept either "sahar" (username) or full email
-    const email = username.includes("@") ? username : `${username}@goodroomhouse.com`;
+    // Accept either a username or full email. Keep legacy username aliases working
+    // while existing admin accounts are migrated to the new brand domain.
+    const emailCandidates = username.includes("@")
+      ? [username]
+      : [`${username}@sundayroseclub.com`, `${username}@goodroomhouse.com`];
+    let authSucceeded = false;
+    let authErrorMessage = "";
 
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    for (const email of emailCandidates) {
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (authError) {
-      setError(authError.message);
+      if (!authError) {
+        authSucceeded = true;
+        break;
+      }
+      authErrorMessage = authError.message;
+    }
+
+    if (!authSucceeded) {
+      setError(authErrorMessage);
       setLoading(false);
       return;
     }
@@ -54,7 +67,7 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-sm">
         {/* Header */}
         <div className="text-center mb-10">
-          <p className="font-display text-2xl text-text tracking-[0.15em]">GOOD ROOM HOUSE</p>
+          <p className="font-display text-2xl text-text tracking-[0.15em]">SUNDAY ROSE CLUB</p>
           <p className="mt-1 text-xs uppercase tracking-widest text-accent-gold/60">Admin Panel</p>
         </div>
 

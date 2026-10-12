@@ -47,7 +47,7 @@ export default function AdminPropertiesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
           <h1 className="font-display text-2xl text-text">Properties</h1>
-          <p className="mt-1 text-sm text-text/40">Manage Good Room House locations</p>
+          <p className="mt-1 text-sm text-text/40">Manage Sunday Rose Club locations</p>
         </div>
         <Link
           href="/admin/properties/new"

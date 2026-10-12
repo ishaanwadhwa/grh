@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import Button from "@/components/ui/Button";
 import SectionDivider from "@/components/ui/SectionDivider";
@@ -86,9 +87,12 @@ export default function FeaturedRestaurants() {
                 <p className="text-xs uppercase tracking-[0.2em] text-accent-gold/50">
                   {restaurant.cuisine}
                 </p>
-                <h3 className="mt-3 font-display text-xl md:text-2xl text-text-inverse group-hover:text-accent-gold transition-colors duration-300">
+                <Link
+                  href={`/${restaurant.slug}`}
+                  className="mt-3 inline-block font-display text-xl md:text-2xl text-text-inverse group-hover:text-accent-gold transition-colors duration-300"
+                >
                   {restaurant.name}
-                </h3>
+                </Link>
                 <p className="mt-4 text-sm leading-relaxed text-text-inverse/40">
                   {restaurant.description}
                 </p>

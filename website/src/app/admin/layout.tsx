@@ -11,6 +11,7 @@ const navItems = [
   { href: "/admin/restaurants", label: "Restaurants", icon: "◉" },
   { href: "/admin/events", label: "Events", icon: "◈" },
   { href: "/admin/bookings", label: "Bookings", icon: "◷" },
+  { href: "/admin/service", label: "Floor Service", icon: "◉" },
   { href: "/admin/reservations", label: "Reservations", icon: "◎" },
   { href: "/admin/users", label: "Admin Users", icon: "◐" },
   { href: "/admin/settings", label: "Settings", icon: "⚙" },
@@ -36,7 +37,7 @@ function Sidebar({
           target="_blank"
           className="font-display text-sm tracking-[0.15em] text-text/70 hover:text-text transition-colors"
         >
-          GOOD ROOM HOUSE
+          SUNDAY ROSE CLUB
         </Link>
         <p className="mt-0.5 text-[10px] uppercase tracking-widest text-accent-gold/60">Admin</p>
       </div>
@@ -146,7 +147,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* ── Mobile: top bar ── */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-border-subtle flex items-center justify-between px-4 py-3">
         <div>
-          <p className="font-display text-sm tracking-[0.15em] text-text/70">GRH</p>
+          <p className="font-display text-sm tracking-[0.15em] text-text/70">SRC</p>
           <p className="text-[9px] uppercase tracking-widest text-accent-gold/60 leading-none">Admin</p>
         </div>
 

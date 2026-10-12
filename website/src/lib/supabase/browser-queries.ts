@@ -37,7 +37,7 @@ function mapRestaurant(row: any): Restaurant {
   return {
     id: row.id, propertyId: row.property_id, name: row.name, slug: row.slug,
     cuisine: row.cuisine, description: row.description, vibe: row.vibe,
-    hours: row.hours, images: row.images || [],
+    hours: row.hours, images: row.images || [], instagramUrl: row.instagram_url || null,
   };
 }
 

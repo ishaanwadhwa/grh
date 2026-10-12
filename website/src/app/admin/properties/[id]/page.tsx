@@ -123,7 +123,7 @@ export default function AdminPropertyEditPage() {
       <div className="space-y-6">
         <div className="grid grid-cols-2 gap-4">
           <FormField label="Name" required>
-            <AdminInput value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Good Room House Jaipur" />
+            <AdminInput value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Sunday Rose Club Jaipur" />
           </FormField>
           <FormField label="Slug" required hint="URL identifier, e.g. jaipur">
             <AdminInput value={form.slug} onChange={(e) => set("slug", e.target.value.toLowerCase().replace(/\s+/g, "-"))} placeholder="jaipur" />

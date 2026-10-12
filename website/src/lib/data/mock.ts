@@ -1,7 +1,7 @@
 import type { Property, Room, Restaurant, Booking, Reservation } from "./schema";
 
 // ============================================
-// MOCK DATA — Good Room House, Jaipur
+// MOCK DATA — Sunday Rose Club, Jaipur
 // ============================================
 
 // --- Properties ---
@@ -9,14 +9,14 @@ import type { Property, Room, Restaurant, Booking, Reservation } from "./schema"
 export const properties: Property[] = [
   {
     id: "prop-jaipur",
-    name: "Good Room House Jaipur",
+    name: "Sunday Rose Club Jaipur",
     slug: "jaipur",
     location: "Walled City, Jaipur, Rajasthan",
     address: "Sitaram Bhawan, Munshi Ramdas Ji Ka Rasta, near Ganga Pole, Walled City, Jaipur, Rajasthan 302002",
     phone: "+91 XXXX XXXX XX",
     tagline: "A 300-Year-Old Haveli. Reborn.",
     description:
-      "Nestled inside Jaipur's UNESCO-listed Walled City, Good Room House Jaipur lives within Sitaram Bhawan — a nearly 300-year-old haveli on Munshi Ramdas Ji Ka Rasta, near Ganga Pole, one of the original gateways to the Pink City. Once home to a Mathur Kayastha family of royal scribes, the haveli has been painstakingly restored over two years — original frescoed walls, hand-carved stone brackets, ornate jharokhas, and sunlit courtyards brought back to life, layer by layer. The result is a place where Mughal-Rajput architecture meets modern design sensibility. Every room is a quiet ode to heritage — softly lit, dressed in handcrafted details, with warm terracottas, soft creams, and touches of indigo inspired by Jaipur's sky.",
+      "Nestled inside Jaipur's UNESCO-listed Walled City, Sunday Rose Club Jaipur lives within Sitaram Bhawan — a nearly 300-year-old haveli on Munshi Ramdas Ji Ka Rasta, near Ganga Pole, one of the original gateways to the Pink City. Once home to a Mathur Kayastha family of royal scribes, the haveli has been painstakingly restored over two years — original frescoed walls, hand-carved stone brackets, ornate jharokhas, and sunlit courtyards brought back to life, layer by layer. The result is a place where Mughal-Rajput architecture meets modern design sensibility. Every room is a quiet ode to heritage — softly lit, dressed in handcrafted details, with warm terracottas, soft creams, and touches of indigo inspired by Jaipur's sky.",
     amenities: [
       "Heritage Courtyard",
       "Rooftop Lounge with Fort Views",

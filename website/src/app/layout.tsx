@@ -18,16 +18,11 @@ const raleway = Raleway({
 
 export const metadata: Metadata = {
   title: {
-    default: "Good Room House",
-    template: "%s | Good Room House",
+    default: "Sunday Rose Club",
+    template: "%s | Sunday Rose Club",
   },
   description:
     "A boutique, experience-first, design-forward micro resort & community-led hospitality brand.",
-  metadataBase: new URL("https://goodroomhouse.com"),
-  icons: {
-    icon: "/tab-logo.jpeg",
-    apple: "/tab-logo.jpeg",
-  },
 };
 
 export default function RootLayout({

@@ -2,13 +2,11 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import Image from "next/image";
 
 interface ComingSoonProps {
   title?: string;
   subtitle?: string;
   description?: string;
-  showLogo?: boolean;
   backHref?: string;
   backLabel?: string;
 }
@@ -17,31 +15,12 @@ export default function ComingSoon({
   title = "Coming Soon",
   subtitle,
   description = "Something beautiful is on its way. Check back soon.",
-  showLogo = true,
   backHref = "/",
   backLabel = "Back to Home",
 }: ComingSoonProps) {
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-6 py-24">
       <div className="max-w-lg w-full text-center">
-        {showLogo && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            className="relative mx-auto mb-12 w-32 md:w-48"
-          >
-            <div className="absolute inset-0 bg-accent-gold/8 blur-3xl rounded-full scale-150" />
-            <Image
-              src="/logo.png"
-              alt="Good Room House"
-              width={200}
-              height={140}
-              className="relative z-10 w-full"
-            />
-          </motion.div>
-        )}
-
         {subtitle && (
           <motion.p
             initial={{ opacity: 0, y: 16 }}

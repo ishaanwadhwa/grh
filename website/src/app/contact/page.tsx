@@ -142,10 +142,10 @@ export default function ContactPage() {
                   Email
                 </h3>
                 <a
-                  href="mailto:hello@goodroomhouse.com"
+                  href="mailto:hello@sundayroseclub.com"
                   className="text-text-inverse/70 hover:text-accent-gold transition-colors"
                 >
-                  hello@goodroomhouse.com
+                  hello@sundayroseclub.com
                 </a>
               </div>
 
@@ -170,7 +170,7 @@ export default function ContactPage() {
                 </h3>
                 <div className="flex flex-col gap-2">
                   <a
-                    href="https://instagram.com/goodroomhouse"
+                    href="https://instagram.com/sundayroseclub"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-text-inverse/50 hover:text-accent-gold transition-colors"
@@ -178,7 +178,7 @@ export default function ContactPage() {
                     Instagram
                   </a>
                   <a
-                    href="https://twitter.com/goodroomhouse"
+                    href="https://twitter.com/sundayroseclub"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-text-inverse/50 hover:text-accent-gold transition-colors"
@@ -195,10 +195,10 @@ export default function ContactPage() {
                   For Press & Collaborations
                 </h3>
                 <a
-                  href="mailto:press@goodroomhouse.com"
+                  href="mailto:press@sundayroseclub.com"
                   className="text-text-inverse/70 hover:text-accent-gold transition-colors text-sm"
                 >
-                  press@goodroomhouse.com
+                  press@sundayroseclub.com
                 </a>
               </div>
             </motion.div>

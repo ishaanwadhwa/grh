@@ -1,5 +1,5 @@
 // ============================================
-// GOOD ROOM HOUSE — Core Data Types
+// SUNDAY ROSE CLUB — Core Data Types
 // ============================================
 // These types define the shape of all data in the system.
 // Currently backed by mock data. Will map to Supabase tables later.
@@ -56,6 +56,7 @@ export interface Restaurant {
   vibe: string;
   hours: string;
   images: string[];
+  instagramUrl?: string | null;
 }
 
 // --- Booking ---

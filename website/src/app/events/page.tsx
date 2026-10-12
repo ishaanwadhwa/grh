@@ -147,7 +147,7 @@ export default function EventsPage() {
             <p className="text-text-inverse/40 mb-4">
               Want to know when something&apos;s happening?
             </p>
-            <Button href="https://instagram.com/goodroomhouse" variant="secondary">
+            <Button href="https://instagram.com/sundayroseclub" variant="secondary">
               Follow on Instagram
             </Button>
           </motion.div>

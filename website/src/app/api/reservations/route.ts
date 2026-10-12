@@ -1,82 +1,65 @@
-import {
-  createReservation,
-  getReservations,
-  cancelReservation,
-  getRestaurantBySlug,
-} from "@/lib/supabase/queries";
+import { createClient } from "@supabase/supabase-js";
 
 export async function POST(request: Request) {
-  const body = await request.json();
-  const { restaurantSlug, date, time, partySize, guestName, guestEmail, guestPhone, guestPhoneCode, isWhatsApp, specialRequests } = body;
-
-  if (!restaurantSlug || !date || !time || !partySize || !guestName || !guestEmail) {
-    return Response.json({ error: "Missing required reservation fields" }, { status: 400 });
-  }
-
-  const restaurant = await getRestaurantBySlug(restaurantSlug);
-  if (!restaurant) {
-    return Response.json({ error: "Restaurant not found" }, { status: 404 });
-  }
-
-  const reservationDate = new Date(date);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (reservationDate < today) {
-    return Response.json({ error: "Reservation date must be in the future" }, { status: 400 });
-  }
-
-  if (partySize < 1 || partySize > 20) {
-    return Response.json({ error: "Party size must be between 1 and 20" }, { status: 400 });
-  }
-
+  let body: Record<string, unknown>;
   try {
-    const reservation = await createReservation({
-      restaurantId: restaurant.id,
-      guestName,
-      guestEmail,
-      guestPhone,
-      guestPhoneCode,
-      isWhatsApp,
-      date,
-      time,
-      partySize,
-      specialRequests,
-    });
-
-    return Response.json({ reservation, restaurantName: restaurant.name }, { status: 201 });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Reservation failed";
-    return Response.json({ error: message }, { status: 500 });
-  }
-}
-
-export async function GET() {
-  try {
-    const reservations = await getReservations();
-    return Response.json({ reservations });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to fetch reservations";
-    return Response.json({ error: message }, { status: 500 });
-  }
-}
-
-export async function PATCH(request: Request) {
-  const body = await request.json();
-  const { reservationId, action } = body;
-
-  if (!reservationId || !action) {
-    return Response.json({ error: "Missing reservationId or action" }, { status: 400 });
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  if (action === "cancel") {
-    try {
-      const reservation = await cancelReservation(reservationId);
-      return Response.json({ reservation });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Cancel failed";
-      return Response.json({ error: message }, { status: 500 });
+  const restaurantSlug = typeof body.restaurantSlug === "string" ? body.restaurantSlug.trim() : "";
+  const serviceId = typeof body.serviceId === "string" ? body.serviceId : "";
+  const date = typeof body.date === "string" ? body.date : "";
+  const time = typeof body.time === "string" ? body.time : "";
+  const partySize = Number(body.partySize);
+  const guestName = typeof body.guestName === "string" ? body.guestName.trim() : "";
+  const guestEmail = typeof body.guestEmail === "string" ? body.guestEmail.trim() : "";
+
+  if (
+    !restaurantSlug || !serviceId || !/^\d{4}-\d{2}-\d{2}$/.test(date)
+    || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)
+    || !Number.isInteger(partySize) || partySize < 1 || partySize > 50
+    || !guestName || guestName.length > 120
+    || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)
+  ) {
+    return Response.json({ error: "Please check the reservation details and try again." }, { status: 400 });
+  }
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) {
+    return Response.json({ error: "Reservation service is not configured." }, { status: 503 });
+  }
+
+  const supabase = createClient(url, key);
+  const { data: reservationId, error } = await supabase.rpc("create_restaurant_reservation", {
+    p_restaurant_slug: restaurantSlug,
+    p_service_id: serviceId,
+    p_service_date: date,
+    p_slot_time: time,
+    p_party_size: partySize,
+    p_guest_name: guestName,
+    p_guest_email: guestEmail,
+    p_guest_phone: typeof body.guestPhone === "string" ? body.guestPhone.trim() : "",
+    p_guest_phone_code: typeof body.guestPhoneCode === "string" ? body.guestPhoneCode : "+91",
+    p_is_whatsapp: body.isWhatsApp === true,
+    p_special_requests: typeof body.specialRequests === "string" ? body.specialRequests.trim() : null,
+  });
+
+  if (error) {
+    if (error.message.includes("SLOT_UNAVAILABLE")) {
+      return Response.json({ error: "That time was just booked. Please choose another available time." }, { status: 409 });
     }
+    if (error.message.includes("RESTAURANT_NOT_FOUND")) {
+      return Response.json({ error: "Restaurant not found." }, { status: 404 });
+    }
+    if (error.message.includes("INVALID_RESERVATION")) {
+      return Response.json({ error: "Please check the reservation details and try again." }, { status: 400 });
+    }
+    console.error("Reservation creation failed:", error.message);
+    return Response.json({ error: "Could not complete the reservation. Please try again." }, { status: 500 });
   }
 
-  return Response.json({ error: "Unknown action" }, { status: 400 });
+  return Response.json({ reservation: { id: reservationId } }, { status: 201 });
 }

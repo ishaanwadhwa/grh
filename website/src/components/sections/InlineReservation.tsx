@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Button from "@/components/ui/Button";
 import SingleDatePicker from "@/components/ui/SingleDatePicker";
-import TimePicker from "@/components/ui/TimePicker";
+import ReservationSlotSelect, { type SelectedReservationSlot } from "@/components/sections/ReservationSlotSelect";
 import GuestCounter from "@/components/ui/GuestCounter";
 import PhoneInput from "@/components/ui/PhoneInput";
 
@@ -21,7 +21,7 @@ export default function InlineReservation({
 }: InlineReservationProps) {
   const [step, setStep] = useState<Step>("form");
   const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
+  const [selectedSlot, setSelectedSlot] = useState<SelectedReservationSlot | null>(null);
   const [partySize, setPartySize] = useState(2);
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
@@ -30,37 +30,41 @@ export default function InlineReservation({
   const [isWhatsApp, setIsWhatsApp] = useState(true);
   const [specialRequests, setSpecialRequests] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [confirmationId, setConfirmationId] = useState("");
+  const [formError, setFormError] = useState("");
 
-  const canProceed = date && time;
+  const canProceed = date && selectedSlot;
   const canSubmit = guestName.trim() && guestEmail.trim();
 
   const handleSubmit = async () => {
     setSubmitting(true);
 
-    // TODO: Wire to real backend — currently hits mock API
     try {
       const res = await fetch("/api/reservations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           restaurantSlug,
+          serviceId: selectedSlot?.serviceId,
           date,
-          time,
+          time: selectedSlot?.time,
           partySize,
           guestName,
           guestEmail,
+          guestPhone: phoneNumber,
+          guestPhoneCode: phoneCode,
+          isWhatsApp,
           specialRequests: specialRequests || undefined,
         }),
       });
 
       const data = await res.json();
       if (res.ok) {
-        setConfirmationId(data.reservation.id);
         setStep("confirmed");
+      } else {
+        setFormError(data.error || "Could not complete the reservation.");
       }
     } catch {
-      // Fail silently for now
+      setFormError("Something went wrong. Please try again.");
     }
     setSubmitting(false);
   };
@@ -68,12 +72,11 @@ export default function InlineReservation({
   const reset = () => {
     setStep("form");
     setDate("");
-    setTime("");
+    setSelectedSlot(null);
     setPartySize(2);
     setGuestName("");
     setGuestEmail("");
     setSpecialRequests("");
-    setConfirmationId("");
   };
 
   return (
@@ -103,16 +106,27 @@ export default function InlineReservation({
               {/* Date */}
               <SingleDatePicker
                 value={date}
-                onChange={setDate}
+                onChange={(nextDate) => {
+                  setDate(nextDate);
+                  setSelectedSlot(null);
+                }}
                 label="Date"
                 placeholder="Select date"
               />
 
-              {/* Time */}
-              <TimePicker value={time} onChange={setTime} />
+              <ReservationSlotSelect
+                restaurantSlug={restaurantSlug}
+                date={date}
+                partySize={partySize}
+                value={selectedSlot}
+                onChange={setSelectedSlot}
+              />
 
               {/* Party size */}
-              <GuestCounter value={partySize} max={12} onChange={setPartySize} />
+              <GuestCounter value={partySize} max={12} onChange={(size) => {
+                setPartySize(size);
+                setSelectedSlot(null);
+              }} />
 
               {/* Proceed */}
               <div className="pt-2">
@@ -141,7 +155,7 @@ export default function InlineReservation({
               <div className="flex flex-wrap gap-3 text-xs text-text-inverse/40 pb-4 border-b border-accent-gold/10">
                 <span>{new Date(date + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>
                 <span>&middot;</span>
-                <span>{time}</span>
+                <span>{selectedSlot?.time} · {selectedSlot?.serviceName}</span>
                 <span>&middot;</span>
                 <span>{partySize} {partySize === 1 ? "guest" : "guests"}</span>
                 <button
@@ -204,6 +218,8 @@ export default function InlineReservation({
                 />
               </div>
 
+              {formError && <p className="text-xs text-accent">{formError}</p>}
+
               {/* Actions */}
               <div className="flex gap-3 pt-2">
                 <Button onClick={() => setStep("form")} variant="ghost">
@@ -244,12 +260,6 @@ export default function InlineReservation({
                 See you at {restaurantName}.
               </p>
 
-              {confirmationId && (
-                <p className="text-xs text-accent-gold/50 font-mono mb-6">
-                  Ref: {confirmationId}
-                </p>
-              )}
-
               <div className="flex flex-wrap gap-3 text-xs text-text-inverse/30 justify-center mb-6">
                 <span>
                   {new Date(date + "T00:00:00").toLocaleDateString("en-IN", {
@@ -259,7 +269,7 @@ export default function InlineReservation({
                   })}
                 </span>
                 <span>&middot;</span>
-                <span>{time}</span>
+                <span>{selectedSlot?.time} · {selectedSlot?.serviceName}</span>
                 <span>&middot;</span>
                 <span>{partySize} {partySize === 1 ? "guest" : "guests"}</span>
               </div>

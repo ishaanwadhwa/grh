@@ -12,7 +12,7 @@ const founders = [
     name: "Ajay Saini",
     role: "Founder & CEO — The Visionary",
     bio: [
-      "A restaurateur, a storyteller, and the original dreamer behind Good Room House. Ajay built his legacy on understanding what makes a space feel right — not just in its design, but in its soul.",
+      "A restaurateur, a storyteller, and the original dreamer behind Sunday Rose Club. Ajay built his legacy on understanding what makes a space feel right — not just in its design, but in its soul.",
       "The architecture of belonging — that's his craft. His eye for detail and warmth for people define everything the House stands for.",
     ],
     quote: "Every corner should feel like it remembers you.",
@@ -23,7 +23,7 @@ const founders = [
     name: "Sahar Saini",
     role: "Founder & COO — The Heart of the House",
     bio: [
-      "The daughter of the vision, and the keeper of its vibe. Sahar brings the pulse — the music, the warmth, the spirit that makes Good Room House come alive.",
+      "The daughter of the vision, and the keeper of its vibe. Sahar brings the pulse — the music, the warmth, the spirit that makes Sunday Rose Club come alive.",
       "She curates not just spaces, but moments — from the scent in the lobby to the energy of an evening. For her, hospitality isn't service — it's seduction.",
     ],
     quote: "The vibe is the experience. The experience is everything.",
@@ -107,7 +107,7 @@ export default function HousemakersPage() {
             transition={{ duration: 0.7, delay: 0.3 }}
             className="mt-8 text-base leading-relaxed text-text-inverse/50 max-w-3xl"
           >
-            Behind Good Room House is a duo that blends legacy with instinct — a
+            Behind Sunday Rose Club is a duo that blends legacy with instinct — a
             father&apos;s vision and a daughter&apos;s modern sensibility. Together,
             they&apos;ve created a brand that feels both timeless and alive — where
             design meets emotion, and hospitality feels human again.
@@ -175,7 +175,7 @@ export default function HousemakersPage() {
               Founders&apos; Note
             </h2>
             <p className="mt-6 text-base leading-relaxed text-text-inverse/50">
-              Good Room House was never meant to be just a hotel. It&apos;s a
+              Sunday Rose Club was never meant to be just a hotel. It&apos;s a
               conversation — between design, desire, and people. A place where
               detail becomes memory, and arrival feels like a return.
             </p>

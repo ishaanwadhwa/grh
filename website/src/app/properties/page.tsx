@@ -68,7 +68,7 @@ export default function PropertiesPage() {
             transition={{ duration: 0.7, delay: 0.2 }}
             className="mt-4 text-base text-text-inverse/50 max-w-2xl"
           >
-            Each Good Room House is an expression of its city — rooted in local
+            Each Sunday Rose Club house is an expression of its city — rooted in local
             context, united by a shared philosophy. Every property has its own
             soul.
           </motion.p>
@@ -142,7 +142,7 @@ export default function PropertiesPage() {
               More cities. Coming soon.
             </p>
             <p className="mt-3 text-sm text-text-inverse/20">
-              Good Room House is expanding. Follow along for new locations.
+              Sunday Rose Club is expanding. Follow along for new locations.
             </p>
           </motion.div>
         </div>

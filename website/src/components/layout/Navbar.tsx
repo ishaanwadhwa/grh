@@ -23,7 +23,7 @@ export default function Navbar() {
           href="/"
           className="font-display text-lg md:text-xl tracking-[0.2em] text-white/80 hover:text-white transition-colors duration-300"
         >
-          GOOD ROOM HOUSE
+          SUNDAY ROSE CLUB
         </Link>
 
         {/* Desktop Nav */}

@@ -75,7 +75,7 @@ export default function AdminUsersPage() {
   };
 
   const usernameFromEmail = (email: string) =>
-    email.replace("@goodroomhouse.com", "");
+    email.replace(/@(sundayroseclub|goodroomhouse)\.com$/i, "");
 
   return (
     <div className="p-8 max-w-2xl">
@@ -133,7 +133,7 @@ export default function AdminUsersPage() {
         <div className="px-5 py-4 border-b border-border-subtle">
           <h2 className="text-sm font-medium text-text">Add New Admin</h2>
           <p className="mt-0.5 text-xs text-text/40">
-            Username becomes <span className="font-mono">username@goodroomhouse.com</span>
+            Username becomes <span className="font-mono">username@sundayroseclub.com</span>
           </p>
         </div>
         <div className="p-6">

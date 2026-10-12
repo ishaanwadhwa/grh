@@ -15,6 +15,8 @@ interface RestaurantForm {
   description: string;
   vibe: string;
   hours: string;
+  timezone: string;
+  instagram_url: string;
   images: string[];
   is_active: boolean;
   featured: boolean;
@@ -27,7 +29,7 @@ export default function AdminRestaurantEditPage() {
 
   const [form, setForm] = useState<RestaurantForm>({
     name: "", slug: "", property_id: "", cuisine: "", description: "",
-    vibe: "", hours: "", images: [], is_active: true, featured: false,
+    vibe: "", hours: "", timezone: "Asia/Kolkata", instagram_url: "", images: [], is_active: true, featured: false,
   });
   const [properties, setProperties] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(!isNew);
@@ -50,7 +52,7 @@ export default function AdminRestaurantEditPage() {
           setForm({
             name: data.name, slug: data.slug, property_id: data.property_id,
             cuisine: data.cuisine, description: data.description, vibe: data.vibe,
-            hours: data.hours, images: data.images || [], is_active: data.is_active, featured: data.featured ?? false,
+            hours: data.hours, timezone: data.timezone || "Asia/Kolkata", instagram_url: data.instagram_url || "", images: data.images || [], is_active: data.is_active, featured: data.featured ?? false,
           });
         }
         setLoading(false);
@@ -88,6 +90,13 @@ export default function AdminRestaurantEditPage() {
         <h1 className="font-display text-2xl text-text">{isNew ? "New Restaurant" : form.name}</h1>
       </div>
 
+      {!isNew && (
+        <div className="mb-6 flex flex-wrap gap-3">
+          <Link href={`/admin/restaurants/${id}/availability`} className="min-h-11 border border-border-subtle bg-white px-4 py-3 text-xs uppercase tracking-widest text-text/70">Booking hours</Link>
+          <Link href={`/admin/restaurants/${id}/floorplan`} className="min-h-11 border border-border-subtle bg-white px-4 py-3 text-xs uppercase tracking-widest text-text/70">Floor plan & tables</Link>
+        </div>
+      )}
+
       <div className="space-y-6">
         <FormField label="Property" required>
           <AdminSelect value={form.property_id} onChange={(e) => set("property_id", e.target.value)}>
@@ -113,6 +122,23 @@ export default function AdminRestaurantEditPage() {
             <AdminInput value={form.hours} onChange={(e) => set("hours", e.target.value)} placeholder="12:00 PM – 11:00 PM" />
           </FormField>
         </div>
+
+        <FormField label="Time zone" hint="IANA time zone, e.g. Asia/Kolkata">
+          <AdminInput
+            value={form.timezone}
+            onChange={(e) => set("timezone", e.target.value)}
+            placeholder="Asia/Kolkata"
+          />
+        </FormField>
+
+        <FormField label="Instagram URL">
+          <AdminInput
+            type="url"
+            value={form.instagram_url}
+            onChange={(e) => set("instagram_url", e.target.value)}
+            placeholder="https://instagram.com/yourrestaurant"
+          />
+        </FormField>
 
         <FormField label="Description" required>
           <AdminTextarea value={form.description} onChange={(e) => set("description", e.target.value)} rows={4} placeholder="Describe the restaurant concept..." />

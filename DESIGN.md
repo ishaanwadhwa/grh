@@ -1,4 +1,4 @@
-# GOOD ROOM HOUSE — Design Language
+# SUNDAY ROSE CLUB — Design Language
 
 **Version:** 0.1
 **Last Updated:** 2026-03-26
@@ -83,16 +83,7 @@ The design language is **"quiet luxury"** — dark, immersive, warm. Inspired by
 
 ## Logo & Brand Assets
 
-### Main Logo (`logo.png`)
-- "GOOD ROOM HOUSE" in tall, condensed serif lettering
-- Deep navy blue letters with subtle crimson outlines on black background
-- Circular "GRH" monogram emblem above text (navy on cream circle)
-- High-res: 3509 x 2480px
-
-### Tab/Favicon (`tab-logo.jpeg`)
-- Circular "GRH" monogram only
-- Cream/beige circle with navy blue letters
-- 240 x 234px
+The previous Good Room House logo and monogram have been removed. The site currently uses text-only branding; no replacement logo or favicon is shown.
 
 ---
 
@@ -126,7 +117,7 @@ The design language is **"quiet luxury"** — dark, immersive, warm. Inspired by
 - Entrance animations: opacity 0→1 + translateY with `0.6-0.7s` duration, `easeOut`
 - Card hover: shadow deepening + slight upward translate (`-translate-y-0.5`)
 - Background effects: radial gradient overlays, vignette gradients
-- Subtle gold glow behind logo using `blur-3xl`
+- No logo glow or brand-mark decoration
 
 ---
 
@@ -156,4 +147,4 @@ The design language is **"quiet luxury"** — dark, immersive, warm. Inspired by
 
 ## Design References
 - [Sacred House](https://www.sacredhouse.com.tr/en) — Editorial, immersive property presentation
-- [goodroomhouse-ui](https://github.com/ishaanwadhwa/goodroomhouse-ui) — Existing brand UI with logo, colors, typography
+- [Legacy brand UI](https://github.com/ishaanwadhwa/goodroomhouse-ui) — Source for the retained colors, typography, and layout style

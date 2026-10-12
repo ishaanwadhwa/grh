@@ -1,5 +1,5 @@
 -- ============================================
--- GOOD ROOM HOUSE — Initial Database Schema
+-- SUNDAY ROSE CLUB — Initial Database Schema
 -- ============================================
 
 -- Properties
