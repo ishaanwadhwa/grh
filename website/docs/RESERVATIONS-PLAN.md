@@ -70,7 +70,9 @@ output hasn't been re-verified against them since; worth a quick manual check be
 
 ## Phase P1A: Booking engine and hostess bookings
 
-Brief: `docs/agent-briefs/P1A-booking-engine.md`.
+**Status: done**, pending review and the reviewer applying migrations `020`-`023` to the
+remote database (see `docs/agent-briefs/P1A-questions.md` for the commit list and what the
+reviewer needs to check/do). Brief: `docs/agent-briefs/P1A-booking-engine.md`.
 
 The hostess books on behalf of guests the way it works in real life:
 
@@ -89,9 +91,23 @@ bookings still fit), which the public RPCs then use; `suggest_tables`, `create_s
 `set_reservation_tables` (assign, reassign, unassign); an admin "New booking" flow with guest
 lookup; a "Needs a table" list on the service screen; fixes to phone normalisation and the guest counters.
 
+✅ All of the above, done against the agent brief:
+- `020_guest_fixes.sql`: phone normalisation (leading 0, embedded country code) and the guest
+  visit/no-show double-count fix, with the one-off merge for guests the renormalisation exposes.
+- `021_allocation_engine.sql`: `_free_tables`, `_unassigned_demand`, `_fits_with_unassigned`,
+  `_rank_table_options` -- internal, no grants.
+- `022_public_rpcs_use_engine.sql`: `get_available_restaurant_slots`/`create_restaurant_reservation`
+  re-created with unchanged signatures/grants, table selection now routed through the engine.
+- `023_staff_booking_rpcs.sql`: `suggest_tables`, `create_staff_reservation`, `set_reservation_tables`,
+  plus the `tables_released` event type and override/`needs_attention` handling.
+- `src/components/admin/NewBookingPanel.tsx`, the `/admin/service` "Needs a table" tray, and the
+  `/admin/reservations` badges + `set_reservation_tables` switch-over.
+- Full design write-up: `docs/RESERVATIONS.md` §3 "Allocation engine (P1A)".
+
 **Done when:** a hostess can take a phone booking in under a minute with a suggested table, a
-manual table, or no table, and assign it later. Online availability never sells capacity that
-unassigned bookings need. Database tests cover all of it.
+manual table, or no table, and assign it later ✅. Online availability never sells capacity that
+unassigned bookings need ✅ (`supabase/tests/009_public_rpcs_use_engine.sql`). Database tests cover
+all of it ✅ (`supabase/tests/010`-`014`, 86/86 passing).
 
 ---
 
