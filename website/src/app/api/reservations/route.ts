@@ -39,7 +39,9 @@ async function handleCreate(request: Request, rawBody: string): Promise<JsonResu
     || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)
     || !Number.isInteger(partySize) || partySize < 1 || partySize > 50
     || !guestName || guestName.length > 120
-    || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)
+    // Email is optional here; whether a restaurant requires it (or a phone) is its
+    // booking policy, enforced in create_public_reservation (CONTACT_REQUIRED).
+    || (guestEmail !== "" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail))
   ) {
     return { status: 400, body: { error: "Please check the reservation details and try again.", code: "VALIDATION_ERROR" } };
   }
