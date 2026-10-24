@@ -5,6 +5,7 @@ import { RATE_LIMITS } from "@/lib/reservations/limits";
 import { normalizePhoneForRateLimit } from "@/lib/reservations/phone";
 import { isTurnstileEnforced, verifyTurnstile } from "@/lib/reservations/turnstile";
 import { claimIdempotencyKey, completeIdempotencyKey } from "@/lib/reservations/idempotency";
+import { randomToken, sha256Hex } from "@/lib/reservations/hash";
 
 interface JsonResult {
   status: number;
@@ -73,7 +74,12 @@ async function handleCreate(request: Request, rawBody: string): Promise<JsonResu
     }
   }
 
-  const { data: reservationId, error } = await supabase.rpc("create_restaurant_reservation", {
+  // Manage token: a 32-byte random value, returned raw exactly once; only its
+  // sha256 hex ever reaches the database. Never logged.
+  const manageToken = randomToken();
+  const manageTokenHash = await sha256Hex(manageToken);
+
+  const { data, error } = await supabase.rpc("create_public_reservation", {
     p_restaurant_slug: restaurantSlug,
     p_service_id: serviceId,
     p_service_date: date,
@@ -81,6 +87,7 @@ async function handleCreate(request: Request, rawBody: string): Promise<JsonResu
     p_party_size: partySize,
     p_guest_name: guestName,
     p_guest_email: guestEmail,
+    p_manage_token_hash: manageTokenHash,
     p_guest_phone: guestPhone,
     p_guest_phone_code: guestPhoneCode,
     p_is_whatsapp: body.isWhatsApp === true,
@@ -89,19 +96,31 @@ async function handleCreate(request: Request, rawBody: string): Promise<JsonResu
 
   if (error) {
     if (error.message.includes("SLOT_UNAVAILABLE")) {
-      return { status: 409, body: { error: "That time was just booked. Please choose another available time." } };
+      return { status: 409, body: { error: "That time was just booked. Please choose another available time.", code: "SLOT_UNAVAILABLE" } };
     }
     if (error.message.includes("RESTAURANT_NOT_FOUND")) {
-      return { status: 404, body: { error: "Restaurant not found." } };
+      return { status: 404, body: { error: "Restaurant not found.", code: "RESTAURANT_NOT_FOUND" } };
+    }
+    if (error.message.includes("CONTACT_REQUIRED")) {
+      return { status: 422, body: { error: "Please provide the required contact details.", code: "CONTACT_REQUIRED" } };
+    }
+    if (error.message.includes("OUTSIDE_BOOKING_WINDOW")) {
+      return { status: 422, body: { error: "That date or time isn't bookable online right now.", code: "OUTSIDE_BOOKING_WINDOW" } };
     }
     if (error.message.includes("INVALID_RESERVATION")) {
-      return { status: 400, body: { error: "Please check the reservation details and try again." } };
+      return { status: 400, body: { error: "Please check the reservation details and try again.", code: "VALIDATION_ERROR" } };
     }
     console.error("Reservation creation failed:", error.message);
-    return { status: 500, body: { error: "Could not complete the reservation. Please try again." } };
+    return { status: 500, body: { error: "Could not complete the reservation. Please try again.", code: "INTERNAL_ERROR" } };
   }
 
-  return { status: 201, body: { reservation: { id: reservationId } } };
+  const result = data as { reservation_id: string; status: "confirmed" | "pending" };
+  // manageToken is the raw token -- returned exactly once, right here. It is
+  // never logged and never stored; only manageTokenHash reached the database.
+  return {
+    status: 201,
+    body: { reservation: { id: result.reservation_id, status: result.status, manageToken } },
+  };
 }
 
 export async function POST(request: Request) {
