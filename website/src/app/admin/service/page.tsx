@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
 import NewBookingPanel from "@/components/admin/NewBookingPanel";
+import { friendlyError } from "@/lib/reservations/adminErrors";
 
 const DEFAULT_WIDTH = 1000;
 const DEFAULT_HEIGHT = 1400;
@@ -50,8 +51,12 @@ interface ServiceReservation {
   seated_at: string | null;
   source: string;
   special_requests: string | null;
+  needs_attention: boolean;
+  attention_reason: string | null;
 }
 interface Assignment { reservation_id: string; table_id: string; }
+interface SuggestOption { table_ids: string[]; labels: string[]; total_capacity: number; fits_unassigned: boolean; }
+interface Suggestion { options: SuggestOption[]; warnings: string[]; unassigned_fits: boolean; }
 interface MapPanGesture { pointerId: number; startX: number; startY: number; originX: number; originY: number; }
 
 function localDate() {
@@ -108,6 +113,10 @@ export default function WaiterServicePage() {
   const [selectedTableId, setSelectedTableId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [assignOverridable, setAssignOverridable] = useState(false);
+  const [needsTableOpen, setNeedsTableOpen] = useState(true);
+  const [needsTableSuggestions, setNeedsTableSuggestions] = useState<Record<string, Suggestion>>({});
+  const [needsTableLoadingId, setNeedsTableLoadingId] = useState("");
   const [notice, setNotice] = useState("");
   const [referenceUrl, setReferenceUrl] = useState("");
   const [zoom, setZoom] = useState(1);
@@ -180,7 +189,7 @@ export default function WaiterServicePage() {
         : Promise.resolve({ data: [], error: null }),
       (() => {
         let query = supabase.from("reservations")
-          .select("id, restaurant_id, service_id, guest_name, guest_email, guest_phone, guest_phone_code, date, time, party_size, status, seated_at, source, special_requests")
+          .select("id, restaurant_id, service_id, guest_name, guest_email, guest_phone, guest_phone_code, date, time, party_size, status, seated_at, source, special_requests, needs_attention, attention_reason")
           .eq("restaurant_id", restaurantId)
           .eq("date", serviceDate)
           .not("status", "in", "(cancelled,completed,no_show)")
@@ -326,7 +335,49 @@ export default function WaiterServicePage() {
     setSelectedReservationId(reservation.id);
     setDraftTableIds(assignments[reservation.id] || []);
     setSelectedTableId("");
+    setAssignOverridable(false);
     setNotice(`Select one or more tables for ${reservation.guest_name}, then assign them.`);
+  };
+
+  // "Needs a table": active reservations with no active assignment, plus
+  // anything flagged for attention (docs/agent-briefs/P1A-booking-engine.md task 6).
+  const needsTableList = reservations.filter((reservation) => !(assignments[reservation.id] || []).length || reservation.needs_attention);
+
+  const suggestForReservation = async (reservation: ServiceReservation) => {
+    if (!reservation.service_id) return;
+    setNeedsTableLoadingId(reservation.id);
+    const { data } = await supabase.rpc("suggest_tables", {
+      p_restaurant_id: reservation.restaurant_id,
+      p_service_id: reservation.service_id,
+      p_date: reservation.date,
+      p_time: reservation.time,
+      p_party_size: reservation.party_size,
+      p_exclude_reservation_id: reservation.id,
+    });
+    setNeedsTableSuggestions((current) => ({ ...current, [reservation.id]: (data as Suggestion) || { options: [], warnings: [], unassigned_fits: true } }));
+    setNeedsTableLoadingId("");
+  };
+
+  const assignSuggestedTable = async (reservation: ServiceReservation, allowOverride = false) => {
+    const option = needsTableSuggestions[reservation.id]?.options?.[0];
+    if (!option) return;
+    setNeedsTableLoadingId(reservation.id);
+    setNotice("");
+    const { error } = await supabase.rpc("set_reservation_tables", {
+      p_reservation_id: reservation.id,
+      p_table_ids: option.table_ids,
+      p_allow_override: allowOverride,
+    });
+    if (error) {
+      const mapped = friendlyError(error.message);
+      setNotice(mapped.text);
+      if (!mapped.overridable) setNeedsTableLoadingId("");
+      return;
+    }
+    setNotice(`${reservation.guest_name} assigned to ${option.labels.join("+")}.`);
+    setNeedsTableSuggestions((current) => { const next = { ...current }; delete next[reservation.id]; return next; });
+    await loadShift();
+    setNeedsTableLoadingId("");
   };
 
   const toggleTableForReservation = (table: ServiceTable) => {
@@ -349,18 +400,20 @@ export default function WaiterServicePage() {
     setSelectedTableId(table.id);
   };
 
-  const assignSelectedTables = async () => {
+  const assignSelectedTables = async (allowOverride = false) => {
     if (!selectedReservation || !draftTableIds.length) return;
     setSaving(true);
     setNotice("");
-    const { error } = await supabase.rpc("assign_reservation_tables", {
+    setAssignOverridable(false);
+    const { error } = await supabase.rpc("set_reservation_tables", {
       p_reservation_id: selectedReservation.id,
       p_table_ids: draftTableIds,
+      p_allow_override: allowOverride,
     });
     if (error) {
-      setNotice(error.message.includes("reservation_table_no_overlap")
-        ? "One of these tables is already assigned at this time. Choose another."
-        : error.message);
+      const mapped = friendlyError(error.message);
+      setNotice(mapped.text);
+      setAssignOverridable(mapped.overridable);
       setSaving(false);
       return;
     }
@@ -445,6 +498,56 @@ export default function WaiterServicePage() {
         </section>
 
         {notice && <p className="mt-3 rounded border border-accent-gold/40 bg-white px-4 py-3 text-sm text-text/65" role="status">{notice}</p>}
+
+        {!loading && needsTableList.length > 0 && (
+          <section className="mt-4 rounded-lg border border-accent/30 bg-white shadow-soft">
+            <button type="button" onClick={() => setNeedsTableOpen((open) => !open)} className="flex min-h-11 w-full items-center justify-between px-4 text-left">
+              <span className="text-xs font-semibold uppercase tracking-widest text-accent">Needs a table \u00b7 {needsTableList.length}</span>
+              <span className="text-xs text-text/45">{needsTableOpen ? "Hide" : "Show"}</span>
+            </button>
+            {needsTableOpen && (
+              <div className="space-y-2 border-t border-border-subtle p-3">
+                {needsTableList.map((reservation) => {
+                  const suggestion = needsTableSuggestions[reservation.id];
+                  const topOption = suggestion?.options?.[0];
+                  const isLoading = needsTableLoadingId === reservation.id;
+                  return (
+                    <div key={reservation.id} className="rounded border border-border-subtle p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-medium text-text">{reservation.time} \u00b7 {reservation.guest_name} \u00b7 {reservation.party_size} guests</p>
+                          {reservation.needs_attention && <p className="mt-0.5 text-[10px] uppercase tracking-wide text-amber-700">Flagged: {reservation.attention_reason?.replaceAll("_", " ") || "needs attention"}</p>}
+                        </div>
+                        {!suggestion && (
+                          <button type="button" onClick={() => void suggestForReservation(reservation)} disabled={isLoading} className="min-h-9 rounded border border-accent-gold/60 px-3 text-[10px] uppercase tracking-wide text-primary disabled:opacity-40">
+                            {isLoading ? "Checking\u2026" : "Suggest a table"}
+                          </button>
+                        )}
+                      </div>
+                      {suggestion && (
+                        <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-border-subtle pt-2">
+                          {topOption ? (
+                            <>
+                              <span className="text-xs text-text/55">Suggested: {topOption.labels.join("+")} ({topOption.total_capacity} seats){!topOption.fits_unassigned ? " \u2014 would overcommit the night" : ""}</span>
+                              <button type="button" onClick={() => void assignSuggestedTable(reservation)} disabled={isLoading} className="min-h-9 rounded bg-primary px-3 text-[10px] uppercase tracking-wide text-white disabled:opacity-40">Assign suggested</button>
+                              {!topOption.fits_unassigned && (
+                                <button type="button" onClick={() => void assignSuggestedTable(reservation, true)} disabled={isLoading} className="min-h-9 rounded bg-accent px-3 text-[10px] uppercase tracking-wide text-white disabled:opacity-40">Book anyway</button>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-xs text-accent">No table fits this party right now.</span>
+                          )}
+                          <button type="button" onClick={() => { chooseReservation(reservation); setNeedsTableOpen(true); }} className="min-h-9 rounded border border-border-subtle px-3 text-[10px] uppercase tracking-wide text-text/55">Choose table</button>
+                          <button type="button" onClick={() => setNeedsTableSuggestions((current) => { const next = { ...current }; delete next[reservation.id]; return next; })} className="min-h-9 px-2 text-[10px] text-text/40 underline">Leave unassigned</button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
 
         {!loading && restaurantId && !floorplan && (
           <div className="mt-4 rounded-lg border border-dashed border-border-subtle bg-white p-5 text-sm text-text/55">
@@ -587,6 +690,7 @@ export default function WaiterServicePage() {
                         <p className="text-xs text-text/55">{selectedReservation.guest_name} · {draftTableIds.map((id) => tables.find((table) => table.id === id)?.label).filter(Boolean).join(", ") || "Select tables on the map"}</p>
                         <div className="flex flex-wrap gap-2">
                           <button type="button" onClick={() => void assignSelectedTables()} disabled={!draftTableIds.length || saving} className="min-h-9 rounded bg-primary px-3 text-[10px] uppercase tracking-wide text-white disabled:opacity-40">Assign</button>
+                          {assignOverridable && <button type="button" onClick={() => void assignSelectedTables(true)} disabled={saving} className="min-h-9 rounded bg-accent px-3 text-[10px] uppercase tracking-wide text-white disabled:opacity-40">Book anyway</button>}
                           {selectedReservation.status !== "seated" && <button type="button" onClick={() => void updateStatus(selectedReservation, "arrived")} disabled={saving} className="min-h-9 rounded border border-accent-gold/60 px-3 text-[10px] uppercase tracking-wide text-primary disabled:opacity-40">Arrived</button>}
                           {selectedReservation.status === "seated" ? <button type="button" onClick={() => void updateStatus(selectedReservation, "completed")} disabled={saving} className="min-h-9 rounded bg-accent-olive px-3 text-[10px] uppercase tracking-wide text-white disabled:opacity-40">Complete</button> : <button type="button" onClick={() => {
                             if (!assignments[selectedReservation.id]?.length) {
@@ -675,6 +779,7 @@ export default function WaiterServicePage() {
                           <p className="text-xs text-text/55">Tap table markers above to assign or change the table. Selected tables: {draftTableIds.map((id) => tables.find((table) => table.id === id)?.label).filter(Boolean).join(", ") || "none"}</p>
                           <div className="mt-3 flex flex-wrap gap-2">
                             <button type="button" onClick={() => void assignSelectedTables()} disabled={!draftTableIds.length || saving} className="min-h-10 rounded bg-primary px-4 text-[10px] font-medium uppercase tracking-widest text-white disabled:opacity-40">{saving ? "Saving…" : "Assign tables"}</button>
+                            {assignOverridable && <button type="button" onClick={() => void assignSelectedTables(true)} disabled={saving} className="min-h-10 rounded bg-accent px-4 text-[10px] font-medium uppercase tracking-widest text-white disabled:opacity-40">Book anyway</button>}
                             {reservation.status === "confirmed" || reservation.status === "pending" ? <button type="button" onClick={() => void updateStatus(reservation, "arrived")} disabled={saving} className="min-h-10 rounded border border-accent-gold/70 px-4 text-[10px] uppercase tracking-widest text-primary disabled:opacity-40">Mark arrived</button> : null}
                             {(reservation.status === "confirmed" || reservation.status === "pending" || reservation.status === "arrived") && <button type="button" onClick={() => {
                               if (!assigned.length) {

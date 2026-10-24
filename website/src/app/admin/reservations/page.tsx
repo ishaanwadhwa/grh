@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import NewBookingPanel from "@/components/admin/NewBookingPanel";
+import { friendlyError } from "@/lib/reservations/adminErrors";
 
 interface TableOption {
   id: string;
@@ -17,6 +18,7 @@ interface TableOption {
 interface ReservationRow {
   id: string;
   restaurant_id: string;
+  service_id: string | null;
   starts_at: string | null;
   ends_at: string | null;
   guest_name: string;
@@ -30,9 +32,24 @@ interface ReservationRow {
   status: string;
   source: string;
   special_requests: string | null;
+  needs_attention: boolean;
+  attention_reason: string | null;
   created_at: string;
   restaurants?: { name: string } | null;
 }
+
+interface SuggestOption {
+  table_ids: string[];
+  labels: string[];
+  total_capacity: number;
+  fits_unassigned: boolean;
+}
+
+interface Suggestion {
+  options: SuggestOption[];
+}
+
+const ACTIVE_STATUSES = ["pending", "confirmed", "arrived", "seated"];
 
 interface AssignmentRow {
   reservation_id: string;
@@ -60,6 +77,8 @@ export default function AdminReservationsPage() {
   const [savingId, setSavingId] = useState("");
   const [notice, setNotice] = useState("");
   const [newBookingOpen, setNewBookingOpen] = useState(false);
+  const [suggestions, setSuggestions] = useState<Record<string, Suggestion>>({});
+  const [overridable, setOverridable] = useState<string>("");
 
   const load = useCallback(async () => {
     let query = supabase
@@ -84,22 +103,50 @@ export default function AdminReservationsPage() {
     setReservations(reservationRows);
     setTables((tableRows || []) as TableOption[]);
 
+    const nextAssignments: Record<string, string[]> = {};
     if (reservationRows.length) {
       const { data: assignedRows } = await supabase
         .from("reservation_table_assignments")
         .select("reservation_id, table_id")
         .is("released_at", null)
         .in("reservation_id", reservationRows.map((row) => row.id));
-      const next: Record<string, string[]> = {};
       for (const assignment of (assignedRows || []) as AssignmentRow[]) {
-        next[assignment.reservation_id] = [...(next[assignment.reservation_id] || []), assignment.table_id];
+        nextAssignments[assignment.reservation_id] = [...(nextAssignments[assignment.reservation_id] || []), assignment.table_id];
       }
-      setAssignments(next);
-      setSelection(next);
-    } else {
-      setAssignments({});
-      setSelection({});
     }
+    setAssignments(nextAssignments);
+    setSelection(nextAssignments);
+
+    // Preselect a suggestion for every active, unassigned reservation so the
+    // table picker opens with a sensible default instead of a blank grid.
+    const unassigned = reservationRows.filter((row) => ACTIVE_STATUSES.includes(row.status) && !nextAssignments[row.id]?.length && row.service_id);
+    if (unassigned.length) {
+      const results = await Promise.all(unassigned.map((row) => supabase.rpc("suggest_tables", {
+        p_restaurant_id: row.restaurant_id,
+        p_service_id: row.service_id,
+        p_date: row.date,
+        p_time: row.time,
+        p_party_size: row.party_size,
+        p_exclude_reservation_id: row.id,
+      }).then(({ data }) => ({ id: row.id, suggestion: data as Suggestion | null }))));
+
+      const nextSuggestions: Record<string, Suggestion> = {};
+      const preselected: Record<string, string[]> = {};
+      for (const result of results) {
+        if (result.suggestion) {
+          nextSuggestions[result.id] = result.suggestion;
+          const topOption = result.suggestion.options?.[0];
+          if (topOption) preselected[result.id] = topOption.table_ids;
+        }
+      }
+      setSuggestions(nextSuggestions);
+      if (Object.keys(preselected).length) {
+        setSelection((current) => ({ ...current, ...preselected }));
+      }
+    } else {
+      setSuggestions({});
+    }
+
     setLoading(false);
   }, [filter, supabase]);
 
@@ -117,25 +164,50 @@ export default function AdminReservationsPage() {
     });
   };
 
-  const saveAssignment = async (reservation: ReservationRow) => {
+  const saveAssignment = async (reservation: ReservationRow, allowOverride = false) => {
     const tableIds = selection[reservation.id] || [];
     if (!tableIds.length) {
-      setNotice("Select at least one table. To free a table, cancel the reservation or select a replacement first.");
+      setNotice("Select at least one table, or use Unassign to leave this booking with no table.");
       return;
     }
     setSavingId(reservation.id);
     setNotice("");
-    const { error } = await supabase.rpc("assign_reservation_tables", {
+    setOverridable("");
+    const { error } = await supabase.rpc("set_reservation_tables", {
       p_reservation_id: reservation.id,
       p_table_ids: tableIds,
+      p_allow_override: allowOverride,
     });
     if (error) {
-      setNotice(error.message.includes("reservation_table_no_overlap")
-        ? "One of those tables is already assigned during this time. Choose another table."
-        : error.message);
+      const mapped = friendlyError(error.message);
+      setNotice(mapped.text);
+      if (mapped.overridable) setOverridable(reservation.id);
     } else {
       setAssignments((current) => ({ ...current, [reservation.id]: tableIds }));
       setNotice(`Tables saved for ${reservation.guest_name}.`);
+      void load();
+    }
+    setSavingId("");
+  };
+
+  const unassignTable = async (reservation: ReservationRow, allowOverride = false) => {
+    setSavingId(reservation.id);
+    setNotice("");
+    setOverridable("");
+    const { error } = await supabase.rpc("set_reservation_tables", {
+      p_reservation_id: reservation.id,
+      p_table_ids: [],
+      p_allow_override: allowOverride,
+    });
+    if (error) {
+      const mapped = friendlyError(error.message);
+      setNotice(mapped.text);
+      if (mapped.overridable) setOverridable(reservation.id);
+    } else {
+      setAssignments((current) => ({ ...current, [reservation.id]: [] }));
+      setSelection((current) => ({ ...current, [reservation.id]: [] }));
+      setNotice(`${reservation.guest_name} is now unassigned.`);
+      void load();
     }
     setSavingId("");
   };
@@ -195,7 +267,15 @@ export default function AdminReservationsPage() {
                       <p className="mt-1 break-all text-xs text-text/50">{reservation.guest_email}</p>
                       {reservation.guest_phone && <p className="mt-1 text-xs text-text/40">{reservation.guest_phone_code} {reservation.guest_phone}{reservation.is_whatsapp ? " · WhatsApp" : ""}</p>}
                     </div>
-                    <span className={`shrink-0 rounded px-2 py-1 text-[10px] uppercase tracking-wider ${STATUS_COLORS[reservation.status] || "bg-background text-text/40"}`}>{reservation.status}</span>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <span className={`rounded px-2 py-1 text-[10px] uppercase tracking-wider ${STATUS_COLORS[reservation.status] || "bg-background text-text/40"}`}>{reservation.status}</span>
+                      {ACTIVE_STATUSES.includes(reservation.status) && !assignedIds.length && (
+                        <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[9px] uppercase tracking-wide text-accent">No table</span>
+                      )}
+                      {reservation.needs_attention && (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] uppercase tracking-wide text-amber-800">Needs attention</span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="mt-4 grid grid-cols-2 gap-3 border-y border-border-subtle/70 py-3 text-sm">
@@ -213,6 +293,11 @@ export default function AdminReservationsPage() {
                         <h3 className="text-xs font-medium text-text">Table assignment</h3>
                         <Link href={`/admin/restaurants/${reservation.restaurant_id}/floorplan`} className="text-[10px] text-text/40 underline">Open floor plan</Link>
                       </div>
+                      {suggestions[reservation.id]?.options?.[0] && !assignedIds.length && (
+                        <p className="mt-1 text-[11px] text-accent-olive">
+                          {`Suggested: ${suggestions[reservation.id].options[0].labels.join("+")} (${suggestions[reservation.id].options[0].total_capacity} seats) \u2014 preselected below.`}
+                        </p>
+                      )}
                       {restaurantTables.length ? (
                         <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
                           {restaurantTables.map((table) => {
@@ -230,6 +315,16 @@ export default function AdminReservationsPage() {
                         <button onClick={() => void saveAssignment(reservation)} disabled={!restaurantTables.length || !dirty || savingId === reservation.id} className="min-h-10 rounded bg-text px-4 text-xs uppercase tracking-widest text-white disabled:opacity-30">
                           {savingId === reservation.id ? "Saving…" : "Save table assignment"}
                         </button>
+                        {assignedIds.length > 0 && (
+                          <button onClick={() => void unassignTable(reservation)} disabled={savingId === reservation.id} className="min-h-10 rounded border border-border-subtle px-3 text-xs text-text/55 disabled:opacity-30">
+                            Unassign
+                          </button>
+                        )}
+                        {overridable === reservation.id && (
+                          <button onClick={() => void saveAssignment(reservation, true)} disabled={savingId === reservation.id} className="min-h-10 rounded bg-accent px-3 text-[10px] font-medium uppercase tracking-widest text-white disabled:opacity-40">
+                            Book anyway
+                          </button>
+                        )}
                         {assignedIds.length > 0 && <p className="text-xs text-text/40">Assigned: {assignedIds.map((id) => restaurantTables.find((table) => table.id === id)?.label).filter(Boolean).join(", ")}</p>}
                       </div>
                     </div>
