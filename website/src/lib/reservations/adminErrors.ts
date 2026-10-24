@@ -27,6 +27,8 @@ export const ERROR_TEXT: Record<string, string> = {
   DUPLICATE_TABLE: "The same table was selected twice.",
   SELECT_AT_LEAST_ONE_TABLE: "Choose at least one table.",
   OUTSIDE_SERVICE_HOURS: "This time is outside the service's normal hours.",
+  RESERVATION_NOT_ACTIVE: "This booking has already been completed, cancelled or marked no-show, so its table can't be changed.",
+  RESERVATION_NOT_PENDING: "This request has already been reviewed.",
 };
 
 // Raw Postgres errors that mean the same thing as one of our codes (e.g. two

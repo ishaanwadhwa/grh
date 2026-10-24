@@ -79,6 +79,8 @@ export default function AdminReservationsPage() {
   const [newBookingOpen, setNewBookingOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<Record<string, Suggestion>>({});
   const [overridable, setOverridable] = useState<string>("");
+  const [reviewOverridable, setReviewOverridable] = useState<string>("");
+  const [pendingCount, setPendingCount] = useState(0);
 
   const load = useCallback(async () => {
     let query = supabase
@@ -147,6 +149,9 @@ export default function AdminReservationsPage() {
       setSuggestions({});
     }
 
+    const { count } = await supabase.from("reservations").select("id", { count: "exact", head: true }).eq("status", "pending");
+    setPendingCount(count || 0);
+
     setLoading(false);
   }, [filter, supabase]);
 
@@ -212,6 +217,27 @@ export default function AdminReservationsPage() {
     setSavingId("");
   };
 
+  const reviewPending = async (reservation: ReservationRow, approve: boolean, tableIds: string[], allowOverride = false) => {
+    setSavingId(reservation.id);
+    setNotice("");
+    setReviewOverridable("");
+    const { error } = await supabase.rpc("review_pending_reservation", {
+      p_reservation_id: reservation.id,
+      p_approve: approve,
+      p_table_ids: tableIds,
+      p_allow_override: allowOverride,
+    });
+    if (error) {
+      const mapped = friendlyError(error.message);
+      setNotice(mapped.text);
+      if (mapped.overridable) setReviewOverridable(reservation.id);
+    } else {
+      setNotice(approve ? `${reservation.guest_name} approved.` : `${reservation.guest_name} declined.`);
+      void load();
+    }
+    setSavingId("");
+  };
+
   const handleCancel = async () => {
     if (!cancelTarget) return;
     const { error } = await supabase.from("reservations").update({ status: "cancelled" }).eq("id", cancelTarget.id);
@@ -237,7 +263,7 @@ export default function AdminReservationsPage() {
           <div className="flex flex-wrap gap-1 border border-border-subtle p-0.5">
             {["all", "confirmed", "pending", "cancelled"].map((status) => (
               <button key={status} onClick={() => { setLoading(true); setFilter(status); }} className={`min-h-10 px-3 text-xs capitalize ${filter === status ? "bg-text text-white" : "text-text/50"}`}>
-                {status}
+                {status === "pending" ? `Requests${pendingCount ? ` (${pendingCount})` : ""}` : status}
               </button>
             ))}
           </div>
@@ -286,6 +312,35 @@ export default function AdminReservationsPage() {
                   </div>
 
                   {reservation.special_requests && <p className="mt-3 text-xs text-text/50">Note: {reservation.special_requests}</p>}
+
+                  {reservation.status === "pending" && (
+                    <div className="mt-4 rounded border border-amber-200 bg-amber-50 p-3">
+                      <h3 className="text-xs font-medium text-amber-900">Needs approval</h3>
+                      {suggestions[reservation.id]?.options?.[0] ? (
+                        <p className="mt-1 text-[11px] text-amber-800">Suggested table: {suggestions[reservation.id].options[0].labels.join("+")} ({suggestions[reservation.id].options[0].total_capacity} seats)</p>
+                      ) : (
+                        <p className="mt-1 text-[11px] text-amber-800">No table suggestion available \u2014 approve with no table and assign one later.</p>
+                      )}
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <button onClick={() => void reviewPending(reservation, true, suggestions[reservation.id]?.options?.[0]?.table_ids || [])} disabled={savingId === reservation.id} className="min-h-9 rounded bg-accent-olive px-3 text-[10px] font-medium uppercase tracking-widest text-white disabled:opacity-40">
+                          Approve{suggestions[reservation.id]?.options?.[0] ? " (suggested table)" : ""}
+                        </button>
+                        {suggestions[reservation.id]?.options?.[0] && (
+                          <button onClick={() => void reviewPending(reservation, true, [])} disabled={savingId === reservation.id} className="min-h-9 rounded border border-amber-300 bg-white px-3 text-[10px] uppercase tracking-widest text-amber-900 disabled:opacity-40">
+                            Approve without a table
+                          </button>
+                        )}
+                        <button onClick={() => void reviewPending(reservation, false, [])} disabled={savingId === reservation.id} className="min-h-9 px-2 text-[10px] text-red-700 underline disabled:opacity-40">
+                          Decline
+                        </button>
+                        {reviewOverridable === reservation.id && (
+                          <button onClick={() => void reviewPending(reservation, true, suggestions[reservation.id]?.options?.[0]?.table_ids || [], true)} disabled={savingId === reservation.id} className="min-h-9 rounded bg-accent px-3 text-[10px] font-medium uppercase tracking-widest text-white disabled:opacity-40">
+                            Approve anyway
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {reservation.status !== "cancelled" && (
                     <div className="mt-4">

@@ -342,6 +342,28 @@ export default function WaiterServicePage() {
   // "Needs a table": active reservations with no active assignment, plus
   // anything flagged for attention (docs/agent-briefs/P1A-booking-engine.md task 6).
   const needsTableList = reservations.filter((reservation) => !(assignments[reservation.id] || []).length || reservation.needs_attention);
+  const pendingList = reservations.filter((reservation) => reservation.status === "pending");
+
+  const reviewPending = async (reservation: ServiceReservation, approve: boolean, tableIds: string[], allowOverride = false) => {
+    setNeedsTableLoadingId(reservation.id);
+    setNotice("");
+    const { error } = await supabase.rpc("review_pending_reservation", {
+      p_reservation_id: reservation.id,
+      p_approve: approve,
+      p_table_ids: tableIds,
+      p_allow_override: allowOverride,
+    });
+    if (error) {
+      const mapped = friendlyError(error.message);
+      setNotice(mapped.text);
+      if (!mapped.overridable) setNeedsTableLoadingId("");
+      return;
+    }
+    setNotice(approve ? `${reservation.guest_name} approved.` : `${reservation.guest_name} declined.`);
+    setNeedsTableSuggestions((current) => { const next = { ...current }; delete next[reservation.id]; return next; });
+    await loadShift();
+    setNeedsTableLoadingId("");
+  };
 
   const suggestForReservation = async (reservation: ServiceReservation) => {
     if (!reservation.service_id) return;
@@ -468,6 +490,9 @@ export default function WaiterServicePage() {
           <div>
             <p className="text-[10px] uppercase tracking-[0.25em] text-accent-gold">Sunday Rose Club · Staff</p>
             <h1 className="mt-1 font-display text-3xl text-primary">Floor service</h1>
+            {pendingList.length > 0 && (
+              <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-amber-800">{pendingList.length} request{pendingList.length === 1 ? "" : "s"} awaiting approval</span>
+            )}
           </div>
           <div className="flex flex-wrap gap-2 self-start">
             <button type="button" onClick={() => setNewBookingOpen(true)} disabled={!restaurantId || services.length === 0} className="min-h-10 rounded border border-accent-gold/60 bg-white px-4 text-xs font-medium uppercase tracking-wide text-primary disabled:opacity-40">+ New booking</button>
@@ -515,7 +540,7 @@ export default function WaiterServicePage() {
                     <div key={reservation.id} className="rounded border border-border-subtle p-3">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
-                          <p className="text-sm font-medium text-text">{reservation.time} \u00b7 {reservation.guest_name} \u00b7 {reservation.party_size} guests</p>
+                          <p className="text-sm font-medium text-text">{reservation.time} \u00b7 {reservation.guest_name} \u00b7 {reservation.party_size} guests{reservation.status === "pending" ? " \u00b7 pending approval" : ""}</p>
                           {reservation.needs_attention && <p className="mt-0.5 text-[10px] uppercase tracking-wide text-amber-700">Flagged: {reservation.attention_reason?.replaceAll("_", " ") || "needs attention"}</p>}
                         </div>
                         {!suggestion && (
@@ -524,7 +549,19 @@ export default function WaiterServicePage() {
                           </button>
                         )}
                       </div>
-                      {suggestion && (
+                      {suggestion && reservation.status === "pending" && (
+                        <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-border-subtle pt-2">
+                          {topOption && <span className="text-xs text-text/55">Suggested: {topOption.labels.join("+")} ({topOption.total_capacity} seats)</span>}
+                          <button type="button" onClick={() => void reviewPending(reservation, true, topOption?.table_ids || [])} disabled={isLoading} className="min-h-9 rounded bg-accent-olive px-3 text-[10px] uppercase tracking-wide text-white disabled:opacity-40">
+                            Approve{topOption ? "" : " (no table)"}
+                          </button>
+                          {topOption && (
+                            <button type="button" onClick={() => void reviewPending(reservation, true, [])} disabled={isLoading} className="min-h-9 rounded border border-border-subtle px-3 text-[10px] uppercase tracking-wide text-text/55">Approve without a table</button>
+                          )}
+                          <button type="button" onClick={() => void reviewPending(reservation, false, [])} disabled={isLoading} className="min-h-9 px-2 text-[10px] text-red-700 underline">Decline</button>
+                        </div>
+                      )}
+                      {suggestion && reservation.status !== "pending" && (
                         <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-border-subtle pt-2">
                           {topOption ? (
                             <>
