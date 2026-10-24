@@ -15,6 +15,7 @@ interface TodayReservation {
   party_size: number;
   status: string;
   restaurants?: { name: string } | null;
+  needs_attention?: boolean; // set by the booking engine (main, P1A)
   reservation_table_assignments?: { table_id: string; released_at: string | null }[] | null;
 }
 
@@ -41,7 +42,7 @@ export default function AdminOverview() {
     async function load() {
       const [res, stay, rests, props, events] = await Promise.all([
         supabase.from("reservations")
-          .select(`id, guest_name, time, party_size, status, restaurants(name), ${WITH_TABLES}`)
+          .select(`*, restaurants(name), ${WITH_TABLES}`) // "*": needs_attention exists only once main's P1A migrations run
           .eq("date", today)
           .not("status", "in", ENDED_FILTER)
           .order("time"),
@@ -67,7 +68,7 @@ export default function AdminOverview() {
   if (loading) return <Loading />;
 
   const guests = reservations.reduce((sum, r) => sum + r.party_size, 0);
-  const waiting = (r: TodayReservation) => needsTable(r, tablesOf(r));
+  const waiting = (r: TodayReservation) => needsTable(r, tablesOf(r)) || (!!r.needs_attention && r.status !== "seated");
   const needTable = reservations.filter(waiting).length;
   const seatedNow = reservations.filter((r) => r.status === "seated").length;
   const checkIns = stays.filter((s) => s.check_in === today).length;

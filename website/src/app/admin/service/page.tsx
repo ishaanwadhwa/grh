@@ -8,6 +8,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { WARNING_TEXT, friendlyError } from "@/lib/reservations/adminErrors";
+import NewBookingPanel from "@/components/admin/NewBookingPanel";
 import { AdminInput, FormField } from "@/components/admin/FormField";
 import {
   ENDED_FILTER, FloorFrame, FloorKey, FloorTable, TableCard, WITH_TABLES, ZoomButtons, contentBox, loadFloor, needsTable,
@@ -30,6 +32,14 @@ interface Booking {
   seated_at: string | null;
   special_requests: string | null;
   phone_verified?: boolean | null; // from the backend handoff (phone codes); not on main yet, so optional
+  needs_attention?: boolean; // set by the booking engine (main, P1A): outside hours, over capacity, overbooked
+  attention_reason?: string | null;
+}
+/** What suggest_tables (the booking engine) returns for one booking. */
+interface Suggestion {
+  options: { table_ids: string[]; labels: string[]; total_capacity: number; fits_unassigned: boolean }[];
+  warnings: string[];
+  unassigned_fits: boolean;
 }
 interface Walkin { name: string; phone: string; party: number; serviceId: string; tableIds: string[]; }
 
@@ -55,12 +65,17 @@ export default function LiveFloorPage() {
   const panRef = useRef<{ pointerId: number; x: number; y: number; box: ViewBox; moved: boolean } | null>(null);
   const bookingsRequest = useRef(0);
 
+  // Deep link from Reservations: /admin/service?restaurant=…&date=…&booking=…
+  const [link] = useState(() => new URLSearchParams(typeof window === "undefined" ? "" : window.location.search));
+  const linkedBooking = useRef(link.get("booking") || "");
+  const selectedRef = useRef(""); // suggestions that arrive after the selection moved on are ignored
+
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
-  const [restaurantId, setRestaurantId] = useState("");
+  const [restaurantId, setRestaurantId] = useState(() => link.get("restaurant") || "");
   const restaurant = restaurants.find((r) => r.id === restaurantId);
   const tz = restaurant?.timezone || "Asia/Kolkata";
   const today = todayIn(tz);
-  const [serviceDate, setServiceDate] = useState(() => todayIn());
+  const [serviceDate, setServiceDate] = useState(() => link.get("date") || todayIn());
   const [serviceFilter, setServiceFilter] = useState("");
 
   // Per restaurant: services and the floor. Per restaurant + day: bookings with their tables.
@@ -79,6 +94,9 @@ export default function LiveFloorPage() {
   const [now, setNow] = useState(0);
   const [walkin, setWalkin] = useState<Walkin | null>(null);
   const [walkinSubmitting, setWalkinSubmitting] = useState(false);
+  const [newBookingOpen, setNewBookingOpen] = useState(false);
+  const [suggestion, setSuggestion] = useState<Suggestion | null>(null); // for the selected booking
+  const [override, setOverride] = useState<"" | "assign" | "unassign">(""); // the engine refused, but staff may force it
 
   const tables = useMemo(() => floor?.tables || [], [floor]);
   const plan = floor?.plan || null;
@@ -133,6 +151,8 @@ export default function LiveFloorPage() {
     setAssignments(Object.fromEntries(rows.map((r) => [r.id, tablesOf(r)])));
     setSelectedBookingId((current) => (rows.some((r) => r.id === current) ? current : ""));
     setDraftTableIds([]);
+    const linked = rows.find((r) => r.id === linkedBooking.current);
+    if (linked) { linkedBooking.current = ""; select(linked, tablesOf(linked)); }
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- loadBookings reads only these two
   useEffect(() => { setAllBookings(null); void loadBookings(); }, [restaurantId, serviceDate]);
@@ -164,15 +184,32 @@ export default function LiveFloorPage() {
 
   // ---------- Actions ----------
 
-  const clearSelection = () => { setSelectedBookingId(""); setDraftTableIds([]); setSelectedTableId(""); };
-
-  const chooseBooking = (r: Booking) => {
-    if (selectedBookingId === r.id) { clearSelection(); return; }
-    setSelectedBookingId(r.id);
-    setDraftTableIds(assignments[r.id] || []);
-    setSelectedTableId("");
-    setPane("floor");
+  const clearSelection = () => {
+    selectedRef.current = "";
+    setSelectedBookingId(""); setDraftTableIds([]); setSelectedTableId(""); setSuggestion(null); setOverride("");
   };
+
+  /** Ask the booking engine for the best tables and preselect them on the floor (if staff haven't picked yet). */
+  const suggestFor = async (r: Booking) => {
+    const { data } = await supabase.rpc("suggest_tables", {
+      p_restaurant_id: restaurantId, p_service_id: r.service_id, p_date: serviceDate, p_time: r.time,
+      p_party_size: r.party_size, p_exclude_reservation_id: r.id,
+    });
+    if (selectedRef.current !== r.id) return;
+    const result = (data as Suggestion | null) || null;
+    setSuggestion(result);
+    const top = result?.options?.[0];
+    if (top) setDraftTableIds((current) => (current.length ? current : top.table_ids));
+  };
+
+  const select = (r: Booking, assigned: string[]) => {
+    selectedRef.current = r.id;
+    setSelectedBookingId(r.id); setDraftTableIds(assigned); setSelectedTableId(""); setSuggestion(null); setOverride("");
+    setPane("floor");
+    if (!assigned.length && r.service_id && r.status !== "seated") void suggestFor(r);
+  };
+
+  const chooseBooking = (r: Booking) => (selectedBookingId === r.id ? clearSelection() : select(r, assignments[r.id] || []));
 
   const tapTable = (table: FloorTableRow) => {
     if (!selected) { setSelectedTableId((current) => (current === table.id ? "" : table.id)); return; }
@@ -182,17 +219,22 @@ export default function LiveFloorPage() {
       return;
     }
     setDraftTableIds((current) => toggle(current, table.id));
+    setOverride("");
   };
 
-  const assignTables = async (r: Booking) => {
+  /** Save a booking's tables through the booking engine (main, P1A). It checks capacity; some refusals can be forced. */
+  const setTables = async (r: Booking, tableIds: string[], allowOverride: boolean, mode: "assign" | "unassign") => {
     setSaving(true);
-    const { error } = await supabase.rpc("assign_reservation_tables", { p_reservation_id: r.id, p_table_ids: draftTableIds });
+    const { error } = await supabase.rpc("set_reservation_tables", { p_reservation_id: r.id, p_table_ids: tableIds, p_allow_override: allowOverride });
     setSaving(false);
     if (error) {
-      fail(error.message.includes("reservation_table_no_overlap") ? "One of those tables is already booked for this time. Pick another." : error);
+      const mapped = friendlyError(error.message);
+      fail(mapped.text);
+      setOverride(mapped.overridable ? mode : "");
       return false;
     }
-    setAssignments((current) => ({ ...current, [r.id]: draftTableIds }));
+    setOverride("");
+    setAssignments((current) => ({ ...current, [r.id]: tableIds }));
     return true;
   };
 
@@ -206,14 +248,21 @@ export default function LiveFloorPage() {
     return true;
   };
 
+  // Each action reloads the day once it's done: the engine may set or clear "needs attention".
+
   /** The one button: save the tables if they changed, then seat. */
-  const seat = async (r: Booking) => {
-    if (!sameIds(draftTableIds, assignments[r.id] || []) && !(await assignTables(r))) return;
-    if (await updateStatus(r, "seated")) { say(`${firstName(r.guest_name)} seated at ${tableNames(draftTableIds)}`); clearSelection(); }
+  const seat = async (r: Booking, allowOverride = false) => {
+    if (!sameIds(draftTableIds, assignments[r.id] || []) && !(await setTables(r, draftTableIds, allowOverride, "assign"))) return;
+    if (await updateStatus(r, "seated")) { say(`${firstName(r.guest_name)} seated at ${tableNames(draftTableIds)}`); clearSelection(); void loadBookings(); }
   };
 
-  const hold = async (r: Booking) => {
-    if (await assignTables(r)) { say(`${tableNames(draftTableIds)} held for ${firstName(r.guest_name)}`); clearSelection(); }
+  const hold = async (r: Booking, allowOverride = false) => {
+    if (await setTables(r, draftTableIds, allowOverride, "assign")) { say(`${tableNames(draftTableIds)} held for ${firstName(r.guest_name)}`); clearSelection(); void loadBookings(); }
+  };
+
+  const unassign = async (r: Booking, allowOverride = false) => {
+    const freed = tableNames(assignments[r.id] || []);
+    if (await setTables(r, [], allowOverride, "unassign")) { say(`${freed} freed. ${firstName(r.guest_name)} now needs a table.`); clearSelection(); void loadBookings(); }
   };
 
   const finish = async (r: Booking) => {
@@ -269,9 +318,10 @@ export default function LiveFloorPage() {
 
   // ---------- Render ----------
 
+  const flagged = (r: Booking) => !!r.needs_attention && r.status !== "seated";
   const groups: [string, Booking[]][] = [
-    ["Needs a table", bookings.filter((r) => needsTable(r, assignments[r.id] || []))],
-    ["Coming up", bookings.filter((r) => r.status !== "seated" && (assignments[r.id] || []).length)],
+    ["Needs a table", bookings.filter((r) => needsTable(r, assignments[r.id] || []) || flagged(r))],
+    ["Coming up", bookings.filter((r) => r.status !== "seated" && (assignments[r.id] || []).length && !flagged(r))],
     ["Seated", bookings.filter((r) => r.status === "seated")],
   ];
   const guests = bookings.reduce((sum, r) => sum + r.party_size, 0);
@@ -286,9 +336,10 @@ export default function LiveFloorPage() {
         <span className="row-sub">
           {[plural(r.party_size, "guest"), tableNames(assignments[r.id] || []), r.status === "seated" && seatedFor(r.seated_at, now)].filter(Boolean).join(" · ")}
         </span>
-        {(r.status === "arrived" || r.phone_verified === false || r.special_requests) && (
+        {(r.status === "arrived" || r.needs_attention || r.phone_verified === false || r.special_requests) && (
           <span className="mt-1.5 flex flex-wrap gap-1.5">
             {r.status === "arrived" && <StatusTag status="arrived" />}
+            {r.needs_attention && <StatusTag status={r.attention_reason || "needs_attention"} />}
             {r.phone_verified === false && <StatusTag status="unverified" title="Booked without a phone code. Confirm on WhatsApp." />}
             {r.special_requests && <span className="tag" title={r.special_requests}>Note</span>}
           </span>
@@ -303,16 +354,24 @@ export default function LiveFloorPage() {
   let actionBar: React.ReactNode = null;
   if (selected) {
     const r = selected;
+    const assigned = assignments[r.id] || [];
+    const changed = !sameIds(draftTableIds, assigned);
     const draftSeats = seatsOf(draftTableIds);
     const short = draftTableIds.length > 0 && draftSeats < r.party_size;
+    const top = suggestion?.options?.[0];
+    const suggested = !!top && !assigned.length && sameIds(draftTableIds, top.table_ids);
     const status = r.status === "seated"
-      ? `Seated ${seatedFor(r.seated_at, now)} at ${tableNames(assignments[r.id] || [])}`
-      : draftTableIds.length ? `${tableNames(draftTableIds)} · ${plural(draftSeats, "seat")}${short ? ` for ${r.party_size}. Add another table?` : ""}` : "Tap free tables on the floor";
+      ? `Seated ${seatedFor(r.seated_at, now)} at ${tableNames(assigned)}`
+      : draftTableIds.length
+        ? `${suggested ? "Suggested: " : ""}${tableNames(draftTableIds)} · ${plural(draftSeats, "seat")}${short ? ` for ${r.party_size}. Add another table?` : ""}${suggested && !top.fits_unassigned ? ". This would overcommit the night." : ""}`
+        : suggestion && !top ? "No table fits this party right now. Pick tables, or leave it unassigned." : "Tap free tables on the floor";
+    const warnings = (suggestion?.warnings || []).map((code) => WARNING_TEXT[code]).filter(Boolean);
     actionBar = (
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="min-w-0 flex-1">
           <p><span className="t-h4">{r.guest_name}</span> <span className="t-sub">· {plural(r.party_size, "guest")} · {fmtTime(r.time)}</span></p>
-          <p className={`t-sub ${short ? "text-(--warn)" : ""}`}>{status}</p>
+          <p className={`t-sub ${short || (suggested && !top.fits_unassigned) ? "text-(--warn)" : ""}`}>{status}</p>
+          {warnings.map((text) => <p key={text} className="t-cap text-(--warn)">{text}</p>)}
           {r.special_requests && <p className="t-sub mt-1">“{r.special_requests}”</p>}
           {(r.guest_phone || r.guest_email) && (
             <p className="t-cap mt-1">{r.guest_phone ? <a className="link" href={`tel:${r.guest_phone_code}${r.guest_phone}`}>{r.guest_phone_code} {r.guest_phone}</a> : r.guest_email}</p>
@@ -325,9 +384,10 @@ export default function LiveFloorPage() {
             <>
               <button type="button" onClick={() => void updateStatus(r, "no_show")} disabled={saving} className="btn btn-danger btn-sm">No-show</button>
               {r.status !== "arrived" && <button type="button" onClick={() => void updateStatus(r, "arrived")} disabled={saving} className="btn btn-grey btn-sm">Arrived</button>}
-              {draftTableIds.length > 0 && !sameIds(draftTableIds, assignments[r.id] || []) && <button type="button" onClick={() => void hold(r)} disabled={saving} className="btn btn-secondary btn-sm">Hold tables</button>}
-              <button type="button" onClick={() => void seat(r)} disabled={saving || !draftTableIds.length} className="btn btn-primary">
-                {saving ? "Saving…" : draftTableIds.length ? `Seat at ${tableNames(draftTableIds)}` : "Seat"}
+              {assigned.length > 0 && !changed && <button type="button" onClick={() => void unassign(r, override === "unassign")} disabled={saving} className="btn btn-grey btn-sm">{override === "unassign" ? "Unassign anyway" : "Unassign"}</button>}
+              {draftTableIds.length > 0 && changed && <button type="button" onClick={() => void hold(r, override === "assign")} disabled={saving} className="btn btn-secondary btn-sm">{override === "assign" ? "Hold anyway" : "Hold tables"}</button>}
+              <button type="button" onClick={() => void seat(r, override === "assign")} disabled={saving || !draftTableIds.length} className="btn btn-primary">
+                {saving ? "Saving…" : override === "assign" ? "Seat anyway" : draftTableIds.length ? `Seat at ${tableNames(draftTableIds)}` : "Seat"}
               </button>
             </>
           )}
@@ -362,7 +422,10 @@ export default function LiveFloorPage() {
       <PageHeader
         title="Live floor"
         sub={loading ? fmtDay(serviceDate) : `${fmtDay(serviceDate)} · ${plural(bookings.length, "booking")} · ${plural(guests, "guest")} · ${groups[2][1].length} seated`}
-        actions={<button type="button" onClick={() => setWalkin({ name: "", phone: "", party: 2, serviceId: serviceFilter || services[0]?.id || "", tableIds: [] })} disabled={!services.length || !plan} className="btn btn-primary">Seat a walk-in</button>}
+        actions={<>
+          <button type="button" onClick={() => setNewBookingOpen(true)} disabled={!restaurantId || !services.length} className="btn btn-secondary">New booking</button>
+          <button type="button" onClick={() => setWalkin({ name: "", phone: "", party: 2, serviceId: serviceFilter || services[0]?.id || "", tableIds: [] })} disabled={!services.length || !plan} className="btn btn-primary">Seat a walk-in</button>
+        </>}
       />
 
       {/* Where and when: restaurant, day, service. One row. */}
@@ -531,6 +594,14 @@ export default function LiveFloorPage() {
         )}
       </Sheet>
 
+      <NewBookingPanel
+        open={newBookingOpen}
+        onClose={() => setNewBookingOpen(false)}
+        onCreated={() => void loadBookings()}
+        defaultRestaurantId={restaurantId}
+        defaultServiceId={serviceFilter || undefined}
+        defaultDate={serviceDate}
+      />
       {snackbar}
     </div>
   );

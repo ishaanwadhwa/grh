@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import NewBookingPanel from "@/components/admin/NewBookingPanel";
 import { ENDED, needsTable } from "@/components/admin/floor";
 import { Empty, Loading, PageHeader, StatusTag, fmtDay, fmtTime, plural, sourceLabel, todayIn, useNotice } from "@/components/admin/ui";
 
@@ -25,6 +26,8 @@ interface ReservationRow {
   status: string;
   source: string;
   special_requests: string | null;
+  needs_attention?: boolean; // set by the booking engine (main, P1A)
+  attention_reason?: string | null;
   restaurants?: { name: string } | null;
   reservation_table_assignments?: { released_at: string | null; restaurant_tables: { label: string } | null }[] | null;
 }
@@ -43,6 +46,7 @@ export default function AdminReservationsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("upcoming");
   const [cancelTarget, setCancelTarget] = useState<ReservationRow | null>(null);
+  const [newBookingOpen, setNewBookingOpen] = useState(false);
   const { say, fail, snackbar } = useNotice();
 
   const load = useCallback(async () => {
@@ -73,7 +77,7 @@ export default function AdminReservationsPage() {
     say(`${target.guest_name}'s booking cancelled. The table is free.`);
   };
 
-  const waiting = (r: ReservationRow) => r.date >= today && needsTable(r, tablesHeld(r));
+  const waiting = (r: ReservationRow) => r.date >= today && (needsTable(r, tablesHeld(r)) || (!!r.needs_attention && r.status !== "seated"));
   const needTable = reservations.filter(waiting).length;
   const byDay = reservations.reduce<Record<string, ReservationRow[]>>((acc, r) => { (acc[r.date] ||= []).push(r); return acc; }, {});
 
@@ -82,7 +86,10 @@ export default function AdminReservationsPage() {
       <PageHeader
         title="Reservations"
         sub={loading ? undefined : filter === "upcoming" ? `${plural(reservations.length, "upcoming booking")}${needTable ? ` · ${needTable} need a table` : ""}` : plural(reservations.length, "booking")}
-        actions={<Link href="/admin/service" className="btn btn-secondary">Open live floor</Link>}
+        actions={<>
+          <Link href="/admin/service" className="btn btn-secondary">Open live floor</Link>
+          <button type="button" onClick={() => setNewBookingOpen(true)} className="btn btn-primary">New booking</button>
+        </>}
       />
 
       <div className="pills" role="group" aria-label="Show">
@@ -130,12 +137,18 @@ export default function AdminReservationsPage() {
                         {r.special_requests && <p className="t-sub mt-1 text-(--ink-2)">“{r.special_requests}”</p>}
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           <StatusTag status={r.status} />
-                          {waiting(r) && <StatusTag status="needs_table" />}
+                          {r.needs_attention ? <StatusTag status={r.attention_reason || "needs_attention"} /> : waiting(r) && <StatusTag status="needs_table" />}
                           {r.phone_verified === false && <StatusTag status="unverified" title="Booked without a phone code. Confirm on WhatsApp." />}
                         </div>
                       </div>
-                      {live && r.status !== "seated" && (
-                        <button type="button" onClick={() => setCancelTarget(r)} className="btn btn-danger btn-sm -mr-3 shrink-0">Cancel</button>
+                      {live && (
+                        <div className="-mr-3 flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center">
+                          {/* Tables are handled in one place: the live floor, opened on this booking */}
+                          <Link href={`/admin/service?restaurant=${r.restaurant_id}&date=${r.date}&booking=${r.id}`} className="btn btn-tertiary btn-sm">
+                            {waiting(r) ? "Find a table" : "Open on floor"}
+                          </Link>
+                          {r.status !== "seated" && <button type="button" onClick={() => setCancelTarget(r)} className="btn btn-danger btn-sm">Cancel</button>}
+                        </div>
                       )}
                     </div>
                   );
@@ -154,6 +167,7 @@ export default function AdminReservationsPage() {
         onConfirm={() => void handleCancel()}
         onCancel={() => setCancelTarget(null)}
       />
+      <NewBookingPanel open={newBookingOpen} onClose={() => setNewBookingOpen(false)} onCreated={() => void load()} />
       {snackbar}
     </div>
   );

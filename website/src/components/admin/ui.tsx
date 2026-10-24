@@ -83,6 +83,11 @@ const STATUS: Record<string, [string, string]> = {
   needs_table: ["tag-warn", "Needs a table"],
   unverified: ["tag-warn", "Unverified"],
   not_bookable: ["tag-warn", "Not bookable"],
+  // booking engine flags (main, P1A: reservations.attention_reason)
+  needs_attention: ["tag-warn", "Needs attention"],
+  outside_hours: ["tag-warn", "Outside hours"],
+  over_capacity: ["tag-warn", "Over capacity"],
+  overbooked: ["tag-warn", "Overbooked"],
   published: ["tag-pos", "Published"],
   draft: ["", "Draft"],
   active: ["tag-pos", "Live"],
