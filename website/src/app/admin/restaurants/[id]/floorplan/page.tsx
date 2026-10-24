@@ -57,6 +57,11 @@ interface Gesture {
   startViewBox: { x: number; y: number; width: number; height: number };
 }
 
+function pickGeometry(table: RestaurantTable) {
+  const { x_percent, y_percent, width_percent, height_percent } = table;
+  return { x_percent, y_percent, width_percent, height_percent };
+}
+
 export default function RestaurantFloorplanPage() {
   const { id: restaurantId } = useParams<{ id: string }>();
   const supabase = useMemo(() => createBrowserClient(
@@ -65,6 +70,8 @@ export default function RestaurantFloorplanPage() {
   ), []);
   const svgRef = useRef<SVGSVGElement>(null);
   const tableInteractionRef = useRef<TableInteraction | null>(null);
+  // Last known database state of each table, used to revert discarded edits.
+  const savedTablesRef = useRef<Record<string, RestaurantTable>>({});
   const [gesture, setGesture] = useState<Gesture | null>(null);
 
   const [restaurantName, setRestaurantName] = useState("Restaurant");
@@ -122,6 +129,8 @@ export default function RestaurantFloorplanPage() {
       setFloorplan(plan as Floorplan);
       if (imageError) setNotice(`Could not load the reference image: ${imageError.message}`);
       setReferenceUrl(signed?.signedUrl || "");
+      savedTablesRef.current = Object.fromEntries((rows || []).map((row) => [row.id, row]));
+      setTableDirty(false);
       setTables(rows || []);
       setSelectedId((current) => (rows || []).some((row) => row.id === current) ? current : rows?.[0]?.id || "");
       setViewBox({ x: 0, y: 0, width: plan.canvas_width, height: plan.canvas_height });
@@ -255,6 +264,7 @@ export default function RestaurantFloorplanPage() {
       setNotice(error?.message || "Could not add the table.");
       return;
     }
+    savedTablesRef.current[data.id] = data;
     setTables((current) => [...current, data]);
     setSelectedId(data.id);
     setTool("table");
@@ -267,12 +277,28 @@ export default function RestaurantFloorplanPage() {
     setTableDirty(true);
   };
 
+  const revertSelected = () => {
+    const saved = selectedId ? savedTablesRef.current[selectedId] : undefined;
+    if (saved) setTables((current) => current.map((table) => table.id === saved.id ? saved : table));
+    setTableDirty(false);
+  };
+
   const selectTable = (tableId: string) => {
-    if (tableDirty && tableId !== selectedId && !window.confirm("Discard unsaved table changes?")) return false;
-    if (tableId !== selectedId) setTableDirty(false);
+    if (tableDirty && tableId !== selectedId) {
+      if (!window.confirm("Discard unsaved table changes?")) return false;
+      revertSelected();
+    }
     setSelectedId(tableId);
     return true;
   };
+
+  // Warn before leaving the page with unsaved table edits.
+  useEffect(() => {
+    if (!tableDirty) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [tableDirty]);
 
   const svgPoint = (event: React.PointerEvent<SVGSVGElement> | React.MouseEvent<SVGSVGElement>) => {
     const svg = svgRef.current;
@@ -363,10 +389,17 @@ export default function RestaurantFloorplanPage() {
         const patch = tablePatchAtPoint(table, svgPoint(event), tableInteraction.kind);
         setTables((current) => current.map((item) => item.id === table.id ? { ...item, ...patch } : item));
         setSaving(true);
-        void supabase.from("restaurant_tables").update(patch).eq("id", table.id).then(({ error }) => {
-          setNotice(error?.message || `${table.label} ${tableInteraction.kind === "move" ? "position" : "size"} saved.`);
+        void supabase.from("restaurant_tables").update(patch).eq("id", table.id).select().maybeSingle().then(({ data, error }) => {
           setSaving(false);
-          if (error) void load();
+          const saved = savedTablesRef.current[table.id];
+          if (error || !data) {
+            setNotice(error?.message || `${table.label} was not saved. Your session may have expired \u2014 sign in again.`);
+            // Roll back only the geometry; keep any unsaved seat/label edits.
+            if (saved) setTables((current) => current.map((item) => item.id === table.id ? { ...item, ...pickGeometry(saved) } : item));
+            return;
+          }
+          savedTablesRef.current[table.id] = saved ? { ...saved, ...pickGeometry(data) } : data;
+          setNotice(`${table.label} ${tableInteraction.kind === "move" ? "position" : "size"} saved.`);
         });
       }
       if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
@@ -456,21 +489,35 @@ export default function RestaurantFloorplanPage() {
 
   const saveTable = async (activeOverride?: boolean) => {
     if (!selected) return;
+    const minSeats = Number(selected.min_capacity);
+    const maxSeats = Number(selected.max_capacity);
+    if (!Number.isInteger(minSeats) || !Number.isInteger(maxSeats) || minSeats < 1 || maxSeats > 50 || minSeats > maxSeats) {
+      setNotice("Seats must be whole numbers between 1 and 50, with min seats no more than max seats.");
+      return;
+    }
+    if (!selected.label.trim()) {
+      setNotice("Table label cannot be empty.");
+      return;
+    }
     setSaving(true);
     const isActive = activeOverride ?? selected.is_active;
-    const { error } = await supabase.from("restaurant_tables").update({
+    const { data, error } = await supabase.from("restaurant_tables").update({
       label: selected.label.trim(), min_capacity: Number(selected.min_capacity),
       max_capacity: Number(selected.max_capacity), shape: selected.shape,
       x_percent: Number(selected.x_percent), y_percent: Number(selected.y_percent),
       width_percent: Number(selected.width_percent), height_percent: Number(selected.height_percent),
       rotation: Number(selected.rotation), zone: selected.zone.trim(), is_active: isActive,
-    }).eq("id", selected.id);
+    }).eq("id", selected.id).select().maybeSingle();
     if (error) {
       setNotice(`Could not save ${selected.label}: ${error.message}`);
+    } else if (!data) {
+      setNotice(`${selected.label} was not saved. Your session may have expired \u2014 sign in again, then retry.`);
     } else {
-      setTables((current) => current.map((table) => table.id === selected.id ? { ...table, is_active: isActive } : table));
+      // Show exactly what the database stored.
+      savedTablesRef.current[data.id] = data;
+      setTables((current) => current.map((table) => table.id === data.id ? data : table));
       setTableDirty(false);
-      setNotice(`${selected.label} settings saved${isActive ? " and enabled for bookings" : ""}.`);
+      setNotice(`${data.label} saved: ${data.min_capacity}\u2013${data.max_capacity} seats${data.is_active ? ", bookable" : ", draft"}.`);
     }
     setSaving(false);
   };
@@ -504,9 +551,10 @@ export default function RestaurantFloorplanPage() {
 
   const hideTable = async () => {
     if (!selected || !window.confirm(`Hide table ${selected.label}? Existing reservations keep their assignment.`)) return;
-    const { error } = await supabase.from("restaurant_tables").update({ is_active: false }).eq("id", selected.id);
-    if (error) setNotice(error.message);
+    const { data, error } = await supabase.from("restaurant_tables").update({ is_active: false }).eq("id", selected.id).select().maybeSingle();
+    if (error || !data) setNotice(error?.message || "Table was not hidden. Your session may have expired \u2014 sign in again.");
     else {
+      if (savedTablesRef.current[data.id]) savedTablesRef.current[data.id].is_active = false;
       setTables((current) => current.map((table) => table.id === selected.id ? { ...table, is_active: false } : table));
       setNotice("Table moved to draft and removed from availability.");
     }
@@ -759,8 +807,8 @@ export default function RestaurantFloorplanPage() {
                   <div className="mt-4 grid grid-cols-2 gap-3">
                     <label className="text-[11px] text-text/55">Label<AdminInput className="mt-1.5" value={selected.label} onChange={(e) => updateSelected("label", e.target.value)} /></label>
                     <label className="text-[11px] text-text/55">Zone<AdminInput className="mt-1.5" value={selected.zone} onChange={(e) => updateSelected("zone", e.target.value)} placeholder="Patio" /></label>
-                    <label className="text-[11px] text-text/55">Min seats<AdminInput className="mt-1.5" type="number" min={1} max={50} value={selected.min_capacity} onChange={(e) => updateSelected("min_capacity", Number(e.target.value))} /></label>
-                    <label className="text-[11px] text-text/55">Max seats<AdminInput className="mt-1.5" type="number" min={1} max={50} value={selected.max_capacity} onChange={(e) => updateSelected("max_capacity", Number(e.target.value))} /></label>
+                    <label className="text-[11px] text-text/55">Min seats<AdminInput className="mt-1.5" type="number" inputMode="numeric" min={1} max={50} step={1} value={Number.isNaN(selected.min_capacity) ? "" : selected.min_capacity} onChange={(e) => updateSelected("min_capacity", e.target.valueAsNumber)} /></label>
+                    <label className="text-[11px] text-text/55">Max seats<AdminInput className="mt-1.5" type="number" inputMode="numeric" min={1} max={50} step={1} value={Number.isNaN(selected.max_capacity) ? "" : selected.max_capacity} onChange={(e) => updateSelected("max_capacity", e.target.valueAsNumber)} /></label>
                     <label className="text-[11px] text-text/55">Shape
                       <AdminSelect className="mt-1.5" value={selected.shape} onChange={(e) => updateSelected("shape", e.target.value)}>
                         <option value="round">Round</option><option value="square">Square</option><option value="rectangle">Rectangle</option>
@@ -772,7 +820,12 @@ export default function RestaurantFloorplanPage() {
                   </div>
                   <p className="mt-3 text-[10px] leading-relaxed text-text/40">Drag the table marker to move it. Drag the red corner handle to resize it; use the width and height fields for precise adjustments.</p>
                   <p className="mt-2 text-[10px] text-text/40">Position {selected.x_percent}% × {selected.y_percent}% · size {selected.width_percent}% × {selected.height_percent}%</p>
-                  {tableDirty && <p className="mt-2 text-[10px] font-medium text-accent">Unsaved table changes</p>}
+                  {tableDirty && (
+                    <p className="mt-2 flex items-center justify-between text-[10px] font-medium text-accent">
+                      Unsaved table changes
+                      <button type="button" onClick={revertSelected} disabled={saving} className="underline disabled:opacity-40">Discard changes</button>
+                    </p>
+                  )}
                   <div className="mt-4 flex flex-wrap gap-2">
                     <button type="button" onClick={() => { setSelectedId(selected.id); setTool("table"); setNotice(`Tap the plan to place ${selected.label}.`); }} className="min-h-10 w-full rounded border border-accent-gold/60 px-3 text-[10px] font-medium uppercase tracking-wider text-primary hover:bg-background">Place on plan</button>
                   </div>
