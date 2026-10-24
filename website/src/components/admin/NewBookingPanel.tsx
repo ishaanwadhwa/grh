@@ -259,6 +259,10 @@ export default function NewBookingPanel({
       return;
     }
 
+    // "Book anyway" after NO_TABLE_AVAILABLE can't mean "auto-pick with override" (there is
+    // nothing to pick) -- in real life it means "save it with no table yet", flagged if overbooked.
+    const effectiveMode = allowOverride && tableMode === "auto" && error?.code === "NO_TABLE_AVAILABLE" ? "none" : tableMode;
+
     setSubmitting(true);
     setError(null);
     const { data, error: rpcError } = await supabase.rpc("create_staff_reservation", {
@@ -272,8 +276,8 @@ export default function NewBookingPanel({
       p_guest_phone_code: phoneCode,
       p_guest_email: email.trim() || null,
       p_source: source,
-      p_table_mode: tableMode,
-      p_table_ids: tableMode === "manual" ? manualTableIds : [],
+      p_table_mode: effectiveMode,
+      p_table_ids: effectiveMode === "manual" ? manualTableIds : [],
       p_special_requests: specialRequests.trim() || null,
       p_external_reference: source === "eazydiner" ? externalReference.trim() : null,
       p_allow_override: allowOverride,
@@ -318,7 +322,7 @@ export default function NewBookingPanel({
             <p>{error.text}</p>
             {error.overridable && (
               <button type="button" onClick={() => void submit(true)} disabled={submitting} className="mt-2 min-h-9 rounded bg-accent px-3 text-[10px] font-medium uppercase tracking-widest text-white disabled:opacity-40">
-                Book anyway
+                {error.code === "NO_TABLE_AVAILABLE" && tableMode === "auto" ? "Book anyway (no table yet)" : "Book anyway"}
               </button>
             )}
           </div>

@@ -26,11 +26,18 @@ export const ERROR_TEXT: Record<string, string> = {
   TABLE_NOT_AVAILABLE: "One of those tables isn't available.",
   DUPLICATE_TABLE: "The same table was selected twice.",
   SELECT_AT_LEAST_ONE_TABLE: "Choose at least one table.",
+  OUTSIDE_SERVICE_HOURS: "This time is outside the service's normal hours.",
+};
+
+// Raw Postgres errors that mean the same thing as one of our codes (e.g. two
+// staff grabbing the same table at once trips the exclusion constraint).
+const ALIASES: Record<string, string> = {
+  reservation_table_no_overlap: "TABLE_ALREADY_RESERVED",
 };
 
 // Only these are safe to retry with p_allow_override = true -- a physical
 // overlap (TABLE_ALREADY_RESERVED) is never overridable.
-export const OVERRIDABLE_CODES = new Set(["OVER_CAPACITY", "CAPACITY_EXCEEDED", "NO_TABLE_AVAILABLE"]);
+export const OVERRIDABLE_CODES = new Set(["OVER_CAPACITY", "CAPACITY_EXCEEDED", "NO_TABLE_AVAILABLE", "OUTSIDE_SERVICE_HOURS"]);
 
 export interface FriendlyError {
   code: string;
@@ -39,7 +46,8 @@ export interface FriendlyError {
 }
 
 export function friendlyError(message: string): FriendlyError {
-  const code = Object.keys(ERROR_TEXT).find((key) => message.includes(key)) || "";
+  const alias = Object.keys(ALIASES).find((key) => message.includes(key));
+  const code = alias ? ALIASES[alias] : Object.keys(ERROR_TEXT).find((key) => message.includes(key)) || "";
   return {
     code,
     text: ERROR_TEXT[code] || "Could not save this. Please try again.",
