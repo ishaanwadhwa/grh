@@ -1,4 +1,9 @@
 import { createServiceClient } from "@/lib/supabase/service";
+import { getClientIp } from "@/lib/reservations/clientIp";
+import { checkRateLimit } from "@/lib/reservations/rateLimit";
+import { RATE_LIMITS } from "@/lib/reservations/limits";
+import { normalizePhoneForRateLimit } from "@/lib/reservations/phone";
+import { isTurnstileEnforced, verifyTurnstile } from "@/lib/reservations/turnstile";
 
 export async function POST(request: Request) {
   let body: Record<string, unknown>;
@@ -15,6 +20,8 @@ export async function POST(request: Request) {
   const partySize = Number(body.partySize);
   const guestName = typeof body.guestName === "string" ? body.guestName.trim() : "";
   const guestEmail = typeof body.guestEmail === "string" ? body.guestEmail.trim() : "";
+  const guestPhone = typeof body.guestPhone === "string" ? body.guestPhone.trim() : "";
+  const guestPhoneCode = typeof body.guestPhoneCode === "string" ? body.guestPhoneCode : "+91";
 
   if (
     !restaurantSlug || !serviceId || !/^\d{4}-\d{2}-\d{2}$/.test(date)
@@ -33,6 +40,30 @@ export async function POST(request: Request) {
     return Response.json({ error: "Reservation service is not configured." }, { status: 503 });
   }
 
+  const clientIp = getClientIp(request);
+
+  // Enforced only once TURNSTILE_SECRET_KEY is configured -- the customer UI
+  // doesn't send a token yet. See docs/RESERVATIONS-API.md.
+  if (isTurnstileEnforced()) {
+    const turnstileToken = typeof body.turnstileToken === "string" ? body.turnstileToken : null;
+    if (!(await verifyTurnstile(turnstileToken, clientIp))) {
+      return Response.json({ error: "Please try again.", code: "BOT_CHECK_FAILED" }, { status: 403 });
+    }
+  }
+
+  const ipLimit = RATE_LIMITS.createPerIp;
+  if (!(await checkRateLimit(supabase, ipLimit.bucket, clientIp, ipLimit.windowSeconds, ipLimit.max))) {
+    return Response.json({ error: "Too many requests. Please slow down and try again shortly.", code: "RATE_LIMITED" }, { status: 429 });
+  }
+
+  const normalizedPhone = normalizePhoneForRateLimit(guestPhoneCode, guestPhone);
+  if (normalizedPhone) {
+    const phoneLimit = RATE_LIMITS.createPerPhone;
+    if (!(await checkRateLimit(supabase, phoneLimit.bucket, normalizedPhone, phoneLimit.windowSeconds, phoneLimit.max))) {
+      return Response.json({ error: "Too many bookings from this phone number today. Please call the restaurant directly.", code: "RATE_LIMITED" }, { status: 429 });
+    }
+  }
+
   const { data: reservationId, error } = await supabase.rpc("create_restaurant_reservation", {
     p_restaurant_slug: restaurantSlug,
     p_service_id: serviceId,
@@ -41,8 +72,8 @@ export async function POST(request: Request) {
     p_party_size: partySize,
     p_guest_name: guestName,
     p_guest_email: guestEmail,
-    p_guest_phone: typeof body.guestPhone === "string" ? body.guestPhone.trim() : "",
-    p_guest_phone_code: typeof body.guestPhoneCode === "string" ? body.guestPhoneCode : "+91",
+    p_guest_phone: guestPhone,
+    p_guest_phone_code: guestPhoneCode,
     p_is_whatsapp: body.isWhatsApp === true,
     p_special_requests: typeof body.specialRequests === "string" ? body.specialRequests.trim() : null,
   });
