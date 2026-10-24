@@ -133,3 +133,15 @@ of `918928e`, which predates all commits below.
    customer booking flow beyond the usual smoke test.
 5. Nothing here touches `anon`/`authenticated` grants on existing functions; the public
    booking flow's privilege surface is unchanged.
+
+---
+
+## Reviewer notes (P0 review)
+
+- **Accepted** all 9 commits. The function rewrites in `016` diff cleanly against `005`/`013` (guest lines only).
+- **Fixed in `019`**: `upsert_guest` was callable by `anon` (Supabase default privileges grant EXECUTE
+  to anon/authenticated, so `REVOKE ... FROM PUBLIC` is not enough). Anyone with the anon key could overwrite guest
+  name/email and set `whatsapp_opt_in`. `019` revokes it and makes future functions private by default; test `007` covers this.
+- Remote pre-check (§1): only `status=cancelled`, `source=website` existed, so it was safe. `014`–`019` applied to production.
+- Carried into P1A: phone normalisation (leading 0 / country code typed twice), guest counters
+  double-counting when a reservation moves back into `completed`.

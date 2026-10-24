@@ -68,7 +68,34 @@ output hasn't been re-verified against them since; worth a quick manual check be
 
 ---
 
-## Phase P1: Harden the public booking path (launch blocker)
+## Phase P1A: Booking engine and hostess bookings
+
+Brief: `docs/agent-briefs/P1A-booking-engine.md`.
+
+The hostess books on behalf of guests the way it works in real life:
+
+1. **The system suggests a table** (best fit), and it's preselected.
+2. **Or she picks a table herself** on the floor plan or from a list.
+3. **Or she decides later.** The booking is saved without a table and assigned before or on the night, again with a suggestion.
+4. She can **book anyway** when the system says it won't fit (a 5 on a 4-top, a squeeze on a full night). It's logged and flagged for attention.
+
+**Key rule: bookings without a table still use up capacity.** One shared check is used by online
+availability, online booking, staff booking and later EazyDiner imports: "can every unassigned
+booking in this window still get a table if we add this party?" Without it, online booking
+would resell seats the hostess has already promised.
+
+**Tasks (summary; details in the brief):** a shared allocation engine (suggestions plus a check that unassigned
+bookings still fit), which the public RPCs then use; `suggest_tables`, `create_staff_reservation`,
+`set_reservation_tables` (assign, reassign, unassign); an admin "New booking" flow with guest
+lookup; a "Needs a table" list on the service screen; fixes to phone normalisation and the guest counters.
+
+**Done when:** a hostess can take a phone booking in under a minute with a suggested table, a
+manual table, or no table, and assign it later. Online availability never sells capacity that
+unassigned bookings need. Database tests cover all of it.
+
+---
+
+## Phase P1B: Harden the public booking path (launch blocker)
 
 **Tasks**
 1. Server-only Supabase client using `SUPABASE_SERVICE_ROLE_KEY`. **Revoke `anon`** on
@@ -89,8 +116,7 @@ every policy rule has a passing database test; cancel and modify work end to end
 ## Phase P2: Staff operations (usable on a real night)
 
 **Tasks**
-1. `create_staff_reservation` RPC: a future booking from any source (phone, EazyDiner,
-   other), with optional manual tables and an override of policy limits (logged).
+1. ~~`create_staff_reservation`~~: moved to P1A.
 2. `set_reservation_status` RPC with allowed transitions only; this replaces direct table
    `UPDATE`s from the browser. Restrict RLS to read-only for staff.
 3. `move_reservation`, `extend_reservation` (overstays push `ends_at` and warn about the next booking),
@@ -192,7 +218,7 @@ In order (**combinations are prioritised: build them straight after P1**):
 
 ## Suggested order
 
-`P0 → P1` (launch-ready backend and contract for the UI) → `P3.2 combinations + staff max`
+`P0 ✅ → P1A` (booking engine and hostess bookings) → `P1B` (public hardening; the API contract's "planned P1" items) → `P3.2 combinations + staff max`
 (Angels needs 7–14 online) → `P2` (staff operations) → `P3.1` (covers) → public soft launch → `P4` (email now,
 WhatsApp when approved) → `P5` → remaining P3.
 
