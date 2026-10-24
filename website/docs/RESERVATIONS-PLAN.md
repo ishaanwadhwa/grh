@@ -113,22 +113,38 @@ all of it ✅ (`supabase/tests/010`-`014`, 86/86 passing).
 
 ## Phase P1B: Harden the public booking path (launch blocker)
 
-Brief: `docs/agent-briefs/P1B-public-hardening.md`. Also covers the fixes carried over from the P1A review (allocation lock).
+**Status: done**, pending review and the reviewer applying migrations `024`-`030` to the
+remote database (see `docs/agent-briefs/P1B-questions.md` for the commit list, manual QA
+steps, and what to check before/after applying). Brief: `docs/agent-briefs/P1B-public-hardening.md`.
+Also covers the fixes carried over from the P1A review (allocation lock).
 Response changes are **additive** so the live customer UI keeps working.
 
 **Tasks**
-1. Server-only Supabase client using `SUPABASE_SERVICE_ROLE_KEY`. **Revoke `anon`** on
-   `create_restaurant_reservation` (and the new public functions) so the API route is the only way in.
-2. Bot protection: Cloudflare Turnstile verified in `POST /api/reservations`.
-3. Rate limiting per IP and per phone number. Use Upstash Redis (Vercel Marketplace), or a Postgres
-   counter table to avoid a new dependency.
-4. Duplicate protection: save the `Idempotency-Key` and return the original result if the same request is retried.
-5. Enforce booking policies inside the database function (lead time, how far ahead, phone/email
-   rules, large-party → `pending`, covers per slot, hold-back).
-6. Implement the manage-token endpoints (view, cancel, modify), respecting `cancellation_cutoff_minutes`.
+1. ✅ Server-only Supabase client (`src/lib/supabase/service.ts`, guarded with `server-only`) using
+   `SUPABASE_SERVICE_ROLE_KEY`. `get_available_restaurant_slots`/`create_restaurant_reservation`
+   revoked for `anon`/`authenticated` (`025`) -- including the literal `PUBLIC` grant both had
+   carried since `004`, which a plain `anon`-only revoke would have missed.
+2. ✅ Bot protection: Cloudflare Turnstile verified in `POST /api/reservations`, enforced only
+   once `TURNSTILE_SECRET_KEY` is set (the customer UI doesn't send a token yet).
+3. ✅ Rate limiting per IP and per phone number -- Postgres counter table (`028`), no new dependency.
+4. ✅ Duplicate protection: `Idempotency-Key` (optional), insert-first claiming (`029`).
+5. ✅ Booking policies enforced in `create_public_reservation`/`get_available_restaurant_slots` v2
+   (`026`): lead time, advance window, phone/email, large-party → `pending`, covers per slot.
+   Hold-back (`online_holdback_pct`) is explicitly P3, not this phase.
+6. ✅ Manage-token endpoints (view, cancel, modify) respecting `cancellation_cutoff_minutes` (`030`
+   + `src/app/api/reservations/manage/[token]/**`).
+7. ✅ Carried over from the P1A review: the allocation lock (`024`, `_lock_restaurant_allocation`),
+   `set_reservation_tables` rejecting non-active reservations, and reassignment no longer clearing
+   an `outside_hours` flag.
+8. ✅ Staff review of `pending` requests: `review_pending_reservation` (`027`) + a Requests list/badge
+   on both admin pages (not in the original P1B task list -- added because task 4 of the P1B brief
+   introduced the pending-approval flow alongside the booking-policy `pending` path).
 
-**Done when:** calling the RPC directly with the anon key fails; double-submitting creates one booking;
-every policy rule has a passing database test; cancel and modify work end to end through the API.
+**Done when:** calling the RPC directly with the anon key fails ✅ (`supabase/tests/016`, `017`);
+double-submitting creates one booking ✅ (`020`); every policy rule has a passing database test ✅
+(`017`, 21 assertions); cancel and modify work end to end through the API ✅
+(`021_manage_rpcs.sql` + the three manage routes). Full local suite: `supabase test db`, 21 files,
+162/162 passing.
 
 ---
 

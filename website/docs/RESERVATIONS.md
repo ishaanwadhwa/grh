@@ -3,8 +3,8 @@
 How restaurant table booking works today, what is missing before it is safe to
 open to the public, and how third-party channels (EazyDiner) will plug in.
 
-**Last updated:** 2026-10 (reflects migrations `001`–`013` and P0's `014`–`019`, all applied
-remotely, plus Phase P1A, migrations `020`–`023`, applied locally only until reviewed)
+**Last updated:** 2026-10 (reflects migrations `001`–`023` -- P0/P1A, all applied remotely --
+plus Phase P1B, migrations `024`–`030`, applied locally only until reviewed)
 
 Implementation plan: `RESERVATIONS-PLAN.md`.
 
@@ -16,41 +16,49 @@ Implementation plan: `RESERVATIONS-PLAN.md`.
 Customer UI                          Admin UI
 /reserve, InlineReservation          /admin/restaurants/[id]/availability  (services + hours)
 ReservationSlotSelect                /admin/restaurants/[id]/floorplan     (tables)
-        │                            /admin/reservations                   (list, badges, assign tables)
-        ▼                            /admin/service                        (live floor, walk-ins, Needs a table)
+        │                            /admin/reservations                   (list, Requests, badges, assign tables)
+        ▼                            /admin/service                        (live floor, walk-ins, Needs a table, Requests)
 GET  /api/reservations/availability          │                            NewBookingPanel                       (guest lookup, suggest + book)
 POST /api/reservations                       │ (Supabase client, admin RLS)
-        │                                    │
+GET/POST /api/reservations/manage/[token]*   │
+        │ (service-role client, src/lib/supabase/service.ts)
         ▼                                    ▼
 Supabase RPCs (SECURITY DEFINER)     Tables (RLS: admins only)
-  get_available_restaurant_slots       restaurants, restaurant_services,
-  create_restaurant_reservation        restaurant_service_hours, restaurant_service_date_overrides,
-  suggest_tables             (admin)   restaurant_floorplans, restaurant_tables,
-  create_staff_reservation   (admin)   reservations, reservation_table_assignments,
-  set_reservation_tables     (admin)   restaurant_booking_policies, guests, reservation_events
-  assign_reservation_tables  (admin, unused by the UI since P1A -- kept for compatibility)
-  create_walkin_reservation  (admin)
-  save_restaurant_service    (admin)
-  _free_tables / _unassigned_demand / _fits_with_unassigned / _rank_table_options   (internal, no grants)
+  get_available_restaurant_slots (v2, service_role only)  restaurants, restaurant_services,
+  create_public_reservation      (service_role only)      restaurant_service_hours, restaurant_service_date_overrides,
+  get/cancel/modify_reservation_by_token (service_role)   restaurant_floorplans, restaurant_tables,
+  create_restaurant_reservation  (revoked, kept for rollback)  reservations, reservation_table_assignments,
+  suggest_tables              (admin)  restaurant_booking_policies, guests, reservation_events,
+  create_staff_reservation    (admin)  api_rate_limits, api_idempotency_keys
+  set_reservation_tables      (admin)
+  review_pending_reservation  (admin)
+  assign_reservation_tables   (admin, unused by the UI since P1A -- kept for compatibility)
+  create_walkin_reservation   (admin)
+  save_restaurant_service     (admin)
+  _free_tables / _unassigned_demand / _fits_with_unassigned / _rank_table_options
+  _lock_restaurant_allocation / _service_window / _validate_table_selection   (all internal, no grants)
 ```
 
 Guest data and floor plans are never exposed publicly. The public only gets
-`(service_id, service_name, slot_time)` from the availability RPC and can only
-write through `create_restaurant_reservation`.
+`(service_id, service_name, slot_time, requires_approval)` from the availability
+RPC, and can only write through `create_public_reservation` or the
+`manage/[token]` RPCs -- all service-role only since P1B (`025`); see §4.
 
 ### Data model
 
 | Table | Purpose |
 |---|---|
-| `restaurant_services` | A bookable service (e.g. Dinner): slot interval, seating duration, buffer, min/max party size, and (`015`) a per-slot covers cap `max_covers_per_slot` (NULL = unlimited, not yet enforced). |
+| `restaurant_services` | A bookable service (e.g. Dinner): slot interval, seating duration, buffer, min/max party size, and (`015`) a per-slot covers cap `max_covers_per_slot` (NULL = unlimited; enforced since `026`, see §4). |
 | `restaurant_service_hours` | Weekly opening hours per service. Close < open means the service runs past midnight (`005`). |
 | `restaurant_service_date_overrides` | Closures or special hours on a specific date. |
-| `restaurant_booking_policies` (`015`) | One row per restaurant: `auto_confirm`, `require_phone`/`require_email`, `large_party_threshold`, `min_lead_minutes`, `max_advance_days`, `last_seating_offset_minutes`, `online_holdback_pct`, `cancellation_cutoff_minutes`, `reminder_offsets_minutes`. Schema only — not yet read by any RPC (P1). Defaults reproduce today's behaviour. |
+| `restaurant_booking_policies` (`015`) | One row per restaurant: `auto_confirm`, `require_phone`/`require_email`, `large_party_threshold`, `min_lead_minutes`, `max_advance_days`, `last_seating_offset_minutes`, `online_holdback_pct`, `cancellation_cutoff_minutes`, `reminder_offsets_minutes`. Enforced in the public booking/modify RPCs since `026`/`030` (§4) — except `online_holdback_pct`, still P3. Defaults reproduce pre-P1B behaviour. |
 | `guests` (`016`) | One row per distinct phone number (`normalize_phone_e164`), with name, email, notes, tags, `visit_count`/`no_show_count`, `whatsapp_opt_in`. Linked from `reservations.guest_id`; upserted by `create_restaurant_reservation`/`create_walkin_reservation`. Phone-less reservations (most walk-ins) have `guest_id = NULL`. |
 | `reservation_events` (`017`, `023`) | Append-only history per reservation: `event_type` (`created`, `status_changed`, `tables_assigned`, `tables_released`, `updated`), `from_status`/`to_status`, `actor_id`/`actor_source`, `payload` (includes `needs_attention`/`attention_reason` on `created`, since `023`). Written only by triggers; nobody can insert directly, not even admins. |
 | `restaurant_floorplans` / `restaurant_tables` | One active floor plan per restaurant. Tables have `min_capacity`/`max_capacity`, a zone, and `is_active` (bookable vs draft). |
-| `reservations` | The booking. `status` and `source` (`website`, `phone`, `walk_in`, `eazydiner`, `other`) are `CHECK`-constrained (`014`). `external_reference` holds the partner's booking ID; unique on `(source, external_reference)`. `guest_id` (`016`) links to `guests`. `manage_token_hash` (`018`) is a schema-only placeholder for the guest manage link (P1B). `needs_attention`/`attention_reason` (`018`) are set by the staff RPCs since `023` (`over_capacity`, `overbooked`, `outside_hours`) when a booking was saved with `p_allow_override`. |
+| `reservations` | The booking. `status` and `source` (`website`, `phone`, `walk_in`, `eazydiner`, `other`) are `CHECK`-constrained (`014`). `external_reference` holds the partner's booking ID; unique on `(source, external_reference)`. `guest_id` (`016`) links to `guests`. `manage_token_hash` (`018`) stores only the sha256 hex of the guest's manage token, set by `create_public_reservation`/`modify_reservation_by_token` since `030` (§4). `needs_attention`/`attention_reason` (`018`) are set by the staff RPCs since `023` (`over_capacity`, `overbooked`, `outside_hours`) when a booking was saved with `p_allow_override`. |
 | `reservation_table_assignments` | Which table(s) a reservation holds and for how long. A **gist exclusion constraint** prevents two active assignments from overlapping on the same table. |
+| `api_rate_limits` (`028`) | Fixed-window request counters (`bucket`, `key`, `window_start`, `hits`) behind `hit_rate_limit()`. Self-cleans rows older than a day. |
+| `api_idempotency_keys` (`029`) | One row per `Idempotency-Key` seen on `POST /api/reservations`: `request_hash`, `status_code`, `response`. Self-cleans rows older than 24h. |
 
 ### Reservation lifecycle
 
@@ -73,12 +81,18 @@ write through `create_restaurant_reservation`.
    engine** (§3 below) fits the party (`min_capacity ≤ party ≤ max_capacity`) and
    `fits_unassigned` (no table an unassigned staff booking needs gets sold out from under it).
 
-**Booking** (`create_restaurant_reservation`):
+**Booking** (`create_public_reservation` since P1B; the pre-P1B `create_restaurant_reservation`
+is revoked but left in place -- see §4):
 
 1. Re-check everything server-side: the service, the hours, that the slot lines up with the interval, and that it fits before closing time.
-2. Choose the **best-fit single table** from the same ranked options as availability, locked with
-   `FOR UPDATE SKIP LOCKED`.
-3. Insert the reservation and its assignment in one transaction. If two
+2. Apply the restaurant's booking policies (§4): contact requirements, lead time/advance
+   window, last-seating offset, covers per slot, and the large-party/`auto_confirm` decision
+   between `confirmed` (with a table) and `pending` (without one, yet).
+3. For a `confirmed` booking, choose the **best-fit single table** from the same ranked
+   options as availability, locked with `FOR UPDATE SKIP LOCKED`, under a per-restaurant
+   advisory lock (§4 "Allocation lock") that serialises this against every other
+   allocation-affecting RPC.
+4. Insert the reservation (and its assignment, if any) in one transaction. If two
    requests race for the same table, the exclusion constraint guarantees only
    one wins; the loser gets a `SLOT_UNAVAILABLE` error, which the API returns as `409`.
 
@@ -92,12 +106,12 @@ immediately on the chosen tables.
 | # | Limitation | Impact | Planned fix |
 |---|---|---|---|
 | A1 | Online booking never combines tables | Large parties see no availability even when two adjacent tables are free | `restaurant_table_combinations` (allowed groups such as T4+T5) used by both RPCs |
-| A2 | No limit on covers per slot | The kitchen can get ten 2-tops all booked for 20:00 | `max_covers_per_slot` on `restaurant_services`, checked in both RPCs |
+| ~~A2~~ | ~~No limit on covers per slot~~ | Fixed in P1B: `max_covers_per_slot` on `restaurant_services`, enforced in `create_public_reservation`/`get_available_restaurant_slots`/`modify_reservation_by_token` | -- |
 | A3 | No hold-back | Every table can be sold online, leaving none for walk-ins or EazyDiner | `online_bookable` flag per table and/or a per-service % of covers held back |
 | A4 | Fixed seating duration | A 2-top and an 8-top get the same time | Duration rules by party size |
 | A5 | Greedy, no re-optimisation | The floor fragments over the evening | Low priority; staff reassign tables by hand |
 
-Suggested order: **A2 → A1 → A3**, then A4. A5 only if it turns out to matter in practice.
+Suggested order: **A1 → A3**, then A4. A5 only if it turns out to matter in practice.
 
 ---
 
@@ -181,23 +195,109 @@ only (no `anon`).
 
 ---
 
-## 4. Public launch blockers
+## 4. Booking policies, pending approvals, and the public API (P1B)
 
-- [ ] **Abuse protection.** `create_restaurant_reservation` is granted to
-      `anon`, so anyone with the public anon key can call it directly and
-      skip `/api/reservations`. Revoke the `anon` grant, call the RPC from the
-      API route with a server-only service-role key, and add rate limiting and a
-      CAPTCHA (e.g. Cloudflare Turnstile).
+Brief: `docs/agent-briefs/P1B-public-hardening.md`. Full HTTP contract: `RESERVATIONS-API.md`.
+
+### Allocation lock
+
+`_lock_restaurant_allocation(restaurant_id)` (`024`) takes a
+`pg_advisory_xact_lock` per restaurant, held for the rest of the transaction.
+Called **before any availability/capacity read** in every RPC that reads or
+writes allocation state: `create_staff_reservation`, `set_reservation_tables`,
+`create_walkin_reservation`, `assign_reservation_tables`,
+`create_public_reservation`, `review_pending_reservation`, and
+`modify_reservation_by_token`. This closes the gap where two bookings arriving
+at the same moment (e.g. a hostess saving an unassigned booking while a guest
+books online) could both pass `_fits_with_unassigned` and overcommit a table.
+Pure reads (`get_available_restaurant_slots`, `suggest_tables`,
+`get_reservation_by_token`) don't take it.
+
+### Booking policies enforced
+
+`create_public_reservation` and `get_available_restaurant_slots` (both
+re-created in `026_public_booking_v2.sql`) read `restaurant_booking_policies`
+and `restaurant_services.max_covers_per_slot`:
+
+| Policy field | Effect |
+|---|---|
+| `require_phone` / `require_email` | Missing contact info → `CONTACT_REQUIRED`. |
+| `min_lead_minutes` / `max_advance_days` | Slot too soon or too far out → `OUTSIDE_BOOKING_WINDOW` (online booking); the slot simply doesn't appear in availability. |
+| `last_seating_offset_minutes` | Slot start must leave this much room before closing, on top of the duration already fitting → `SLOT_UNAVAILABLE` if not. |
+| `max_covers_per_slot` (per service) | Sum of `party_size` for active reservations at that exact service/date/time, plus this party, capped → `SLOT_UNAVAILABLE` if exceeded. |
+| `large_party_threshold` | `party_size` at/above it → saved `pending`, no table. Still checked against `_fits_with_unassigned` as unassigned demand, so a pending request that could never be seated is rejected (`SLOT_UNAVAILABLE`), not silently accepted. |
+| `auto_confirm = FALSE` | Every booking is `pending`, same capacity rule as above. |
+
+`online_holdback_pct` is **not** enforced yet -- per-table hold-back is P3
+(`restaurant_table_combinations`, `online_bookable`).
+
+`get_available_restaurant_slots` applies the same window/last-seating/covers
+rules and adds a `requires_approval` column (`true` for large parties or
+`auto_confirm = FALSE`) -- see `RESERVATIONS-API.md`.
+
+### Pending approval
+
+A `pending` reservation (large party or `auto_confirm = FALSE`) is reviewed by
+staff: `review_pending_reservation(reservation_id, approve, table_ids?,
+allow_override?)` (`027`) -- approve (with a `suggest_tables`-preselected
+table, a manual one, or none) confirms it; decline cancels it. Surfaced as a
+**Requests** list on `/admin/reservations` (the existing `pending` filter tab,
+now showing a live count) and a badge + inline Approve/Decline on
+`/admin/service`'s "Needs a table" tray.
+
+### Manage tokens
+
+`POST /api/reservations` generates a 32-byte random token, returns it **once**
+as `reservation.manageToken`, and passes only its sha256 hex to
+`create_public_reservation`, which stores it in `reservations.manage_token_hash`
+(schema from `018`). Three service-role RPCs (`030_manage_rpcs.sql`), all
+looked up by that hash:
+
+- `get_reservation_by_token`: guest-safe summary only (no table, phone, email, or internal flags).
+- `cancel_reservation_by_token`: respects `cancellation_cutoff_minutes`; only from `pending`/`confirmed`.
+- `modify_reservation_by_token`: takes the allocation lock, applies the same policy
+  checks as `create_public_reservation` plus the cancellation cutoff, and
+  re-allocates excluding its own current table. Atomic: any failure leaves the
+  booking untouched.
+
+Guest actions run through the service-role client, so `auth.uid()` is `NULL`
+just like a background job -- `log_reservation_update_event` would otherwise
+label them `'system'`. Both token RPCs set a transaction-local GUC
+(`PERFORM set_config('app.actor_source', 'guest', true)`) before writing,
+which the trigger reads first and falls back to the old `auth.uid()`-based
+`staff`/`system` split only when it's unset.
+
+### Rate limiting, idempotency, bot protection
+
+Summarised here; full detail (limits, headers, codes) in `RESERVATIONS-API.md`:
+
+- **Rate limiting**: Postgres-backed (`hit_rate_limit`, `028`, no new dependency), checked before every RPC call from the API routes.
+- **Idempotency**: optional `Idempotency-Key` header on `POST /api/reservations` (`029`); insert-first claiming, replays the exact stored response for a genuine retry.
+- **Bot protection**: Cloudflare Turnstile on `POST /api/reservations`, enforced only once `TURNSTILE_SECRET_KEY` is set (the customer UI doesn't send a token yet).
+
+---
+
+## 5. Public launch blockers
+
+- [x] **Abuse protection** (P1B). `get_available_restaurant_slots`/`create_restaurant_reservation`
+      are revoked for `anon`/`authenticated` (`025`); `/api/reservations*` now calls
+      `create_public_reservation`/`get_available_restaurant_slots` (v2) through a
+      server-only service-role client (`src/lib/supabase/service.ts`). Rate limiting
+      (`028`) and Cloudflare Turnstile (enforced once `TURNSTILE_SECRET_KEY` is set) are in
+      place -- see `RESERVATIONS-API.md` §§Rate limits/Bot protection.
 - [ ] **Confirmation email** via Resend (`src/lib/resend/client.ts` exists but is not used yet).
-- [ ] **Guest self-service.** A signed manage link to cancel or change a booking.
-- [ ] **Admin-created future bookings** for phone and other channels. Today admins can only create
-      walk-ins, which are seated immediately.
-- [ ] **A2: covers per slot.**
+- [x] **Guest self-service** (P1B). Manage tokens (`018`, `030`) and
+      `/api/reservations/manage/[token]*` (view, cancel, modify).
+- [x] **Admin-created future bookings** (P1A). `create_staff_reservation` books any source
+      (phone/eazydiner/other) for a future date/time, with auto/manual/no table.
+- [x] **A2: covers per slot** (P1B). `restaurant_services.max_covers_per_slot`, enforced in
+      `create_public_reservation`/`get_available_restaurant_slots` v2 and
+      `modify_reservation_by_token`.
 - [ ] End-to-end QA once the new customer UI lands.
 
 ---
 
-## 5. EazyDiner integration
+## 6. EazyDiner integration
 
 **Core problem:** EazyDiner sells from inventory configured in *its* dashboard
 and cannot see our tables, so double-booking is possible unless we manage it.
@@ -243,7 +343,7 @@ The phased implementation is in `RESERVATIONS-PLAN.md`.
 
 ---
 
-## 6. Working on this
+## 7. Working on this
 
 - Migrations live in `supabase/migrations/` and are applied in order. Many are
   forward fixes (`CREATE OR REPLACE`) because earlier ones are already applied
