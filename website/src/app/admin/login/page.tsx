@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createBrowserClient } from "@supabase/ssr";
+import { createClient } from "@/lib/supabase/client";
+import { AdminInput, FormField } from "@/components/admin/FormField";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -16,10 +17,7 @@ export default function AdminLoginPage() {
     setError("");
     setLoading(true);
 
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    const supabase = createClient();
 
     // Accept either a username or full email. Keep legacy username aliases working
     // while existing admin accounts are migrated to the new brand domain.
@@ -43,7 +41,7 @@ export default function AdminLoginPage() {
     }
 
     if (!authSucceeded) {
-      setError(authErrorMessage);
+      setError(authErrorMessage === "Invalid login credentials" ? "That username and password don't match." : authErrorMessage);
       setLoading(false);
       return;
     }
@@ -54,7 +52,7 @@ export default function AdminLoginPage() {
 
     if (!data.isAdmin) {
       await supabase.auth.signOut();
-      setError("You do not have admin access.");
+      setError("This account doesn't have admin access.");
       setLoading(false);
       return;
     }
@@ -63,57 +61,42 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-6">
-      <div className="w-full max-w-sm">
-        {/* Header */}
-        <div className="text-center mb-10">
-          <p className="font-display text-2xl text-text tracking-[0.15em]">SUNDAY ROSE CLUB</p>
-          <p className="mt-1 text-xs uppercase tracking-widest text-accent-gold/60">Admin Panel</p>
+    <main className="grid min-h-svh place-items-center px-6 py-12">
+      <div className="w-full max-w-[400px]">
+        <div className="mb-4 text-center">
+          <p className="wordmark" style={{ padding: 0 }}>Sunday Rose Club</p>
+          <p className="t-cap">Admin</p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-5">
-          <div>
-            <label className="block text-xs uppercase tracking-widest text-text/50 font-medium mb-2">
-              Username
-            </label>
-            <input
+        <form onSubmit={handleLogin} className="card form">
+          <FormField label="Username">
+            <AdminInput
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
               autoComplete="username"
               placeholder="sahar"
-              className="w-full border border-border-subtle bg-white px-4 py-3 text-sm text-text placeholder:text-text/20 focus:outline-none focus:border-accent-gold/50 transition-colors"
             />
-          </div>
-
-          <div>
-            <label className="block text-xs uppercase tracking-widest text-text/50 font-medium mb-2">
-              Password
-            </label>
-            <input
+          </FormField>
+          <FormField label="Password">
+            <AdminInput
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              autoComplete="current-password"
               placeholder="••••••••"
-              className="w-full border border-border-subtle bg-white px-4 py-3 text-sm text-text placeholder:text-text/20 focus:outline-none focus:border-accent-gold/50 transition-colors"
             />
-          </div>
+          </FormField>
 
-          {error && (
-            <p className="text-xs text-accent text-center">{error}</p>
-          )}
+          {error && <p className="hint error -mt-2" role="alert">{error}</p>}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-text text-text-inverse py-3 text-xs uppercase tracking-widest font-medium hover:bg-text/80 transition-colors disabled:opacity-40"
-          >
-            {loading ? "Signing in..." : "Sign In"}
+          <button type="submit" disabled={loading} className="btn btn-primary btn-block">
+            {loading ? "Signing in…" : "Sign in"}
           </button>
         </form>
       </div>
-    </div>
+    </main>
   );
 }

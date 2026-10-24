@@ -1,21 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import Button from "@/components/ui/Button";
 import SectionDivider from "@/components/ui/SectionDivider";
-import { fetchRestaurants } from "@/lib/supabase/browser-queries";
 import type { Restaurant } from "@/lib/data/schema";
 
-export default function FeaturedRestaurants() {
-  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
-
-  useEffect(() => {
-    fetchRestaurants(true).then(setRestaurants); // featuredOnly = true
-  }, []);
-
+export default function FeaturedRestaurants({ restaurants }: { restaurants: Restaurant[] }) {
   if (restaurants.length === 0) return null;
 
   return (

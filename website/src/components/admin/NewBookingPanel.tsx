@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { ERROR_TEXT, WARNING_TEXT, friendlyError } from "@/lib/reservations/adminErrors";
+import { AdminInput, AdminSelect, AdminTextarea, FormField } from "@/components/admin/FormField";
+import { Close, fmtTime, sourceLabel } from "@/components/admin/ui";
 
 interface RestaurantOption {
   id: string;
@@ -293,7 +295,7 @@ export default function NewBookingPanel({
     const tableLabel = result.table_ids.length
       ? tables.filter((t) => result.table_ids.includes(t.id)).map((t) => t.label).join(", ")
       : "no table yet";
-    setNotice(`${name.trim()} booked for ${time} \u00b7 ${tableLabel}${result.needs_attention ? " \u00b7 flagged for attention" : ""}.`);
+    setNotice(`${name.trim()} booked for ${fmtTime(time)} \u00b7 ${tableLabel}${result.needs_attention ? " \u00b7 flagged for attention" : ""}.`);
     onCreated();
     window.setTimeout(onClose, 1400);
   };
@@ -301,171 +303,177 @@ export default function NewBookingPanel({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-primary-dark/55 p-2 sm:items-center sm:p-4">
+    <div className="scrim">
       <section
-        className="max-h-[92dvh] w-full max-w-2xl overflow-y-auto rounded-t-xl border border-accent-gold/40 bg-background p-4 shadow-deep sm:rounded-xl sm:p-6"
+        className="sheet"
+        style={{ maxWidth: 640 }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="new-booking-heading"
       >
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.25em] text-accent-gold">New booking</p>
-            <h2 id="new-booking-heading" className="mt-1 font-display text-2xl text-primary">Take a booking</h2>
-          </div>
-          <button type="button" onClick={onClose} aria-label="Close new booking" className="h-10 w-10 rounded border border-border-subtle text-xl text-text/50">×</button>
-        </div>
+        <p className="t-cap">New booking</p>
+        <h2 id="new-booking-heading" className="t-h3 pr-12">Take a booking</h2>
+        <button type="button" onClick={onClose} aria-label="Close new booking" className="sheet-close"><Close /></button>
 
-        {notice && <p className="mt-4 rounded border border-accent-olive/40 bg-accent-olive/10 px-3 py-2 text-xs text-accent-olive" role="status">{notice}</p>}
-        {error && (
-          <div className="mt-4 rounded border border-accent/40 bg-accent/5 px-3 py-2 text-xs text-accent" role="alert">
-            <p>{error.text}</p>
-            {error.overridable && (
-              <button type="button" onClick={() => void submit(true)} disabled={submitting} className="mt-2 min-h-9 rounded bg-accent px-3 text-[10px] font-medium uppercase tracking-widest text-white disabled:opacity-40">
-                {error.code === "NO_TABLE_AVAILABLE" && tableMode === "auto" ? "Book anyway (no table yet)" : "Book anyway"}
-              </button>
-            )}
-          </div>
-        )}
-
-        <div className="mt-5 space-y-5">
+        <div className="mt-6 space-y-10">
           {!defaultRestaurantId && (
-            <label className="block text-[10px] uppercase tracking-widest text-text/45">Restaurant
-              <select value={restaurantId} onChange={(event) => setRestaurantId(event.target.value)} className="mt-1.5 min-h-11 w-full rounded border border-border-subtle bg-white px-3 text-sm text-primary">
+            <FormField label="Restaurant">
+              <AdminSelect value={restaurantId} onChange={(event) => setRestaurantId(event.target.value)}>
                 {restaurants.map((restaurant) => <option key={restaurant.id} value={restaurant.id}>{restaurant.name}</option>)}
-              </select>
-            </label>
+              </AdminSelect>
+            </FormField>
           )}
 
           <div>
-            <p className="mb-2 text-[10px] uppercase tracking-widest text-text/45">Guest</p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <label className="text-[10px] uppercase tracking-widest text-text/45">Phone
-                <div className="mt-1.5 flex gap-1">
-                  <input value={phoneCode} onChange={(event) => setPhoneCode(event.target.value)} aria-label="Phone code" className="min-h-11 w-16 rounded border border-border-subtle bg-white px-2 text-sm text-primary" />
-                  <input type="tel" value={phone} onChange={(event) => { setPhone(event.target.value); setSelectedGuest(null); }} placeholder="Guest phone" className="min-h-11 w-full rounded border border-border-subtle bg-white px-3 text-sm text-primary placeholder:text-text/30" />
+            <h3 className="t-h4 mb-4">Guest</h3>
+            <div className="form">
+              <div className="form-2">
+                <FormField label="Phone">
+                  <div className="flex gap-3">
+                    <AdminInput value={phoneCode} onChange={(event) => setPhoneCode(event.target.value)} aria-label="Phone code" className="w-16 shrink-0" />
+                    <AdminInput type="tel" value={phone} onChange={(event) => { setPhone(event.target.value); setSelectedGuest(null); }} placeholder="Guest phone" />
+                  </div>
+                </FormField>
+                <FormField label="Name">
+                  <AdminInput value={name} onChange={(event) => { setName(event.target.value); setSelectedGuest(null); }} placeholder="Guest name" />
+                </FormField>
+              </div>
+
+              {matches.length > 0 && (
+                <div className="card flush rows">
+                  {matches.map((guest) => (
+                    <button type="button" key={guest.id} onClick={() => pickGuest(guest)} className="row">
+                      <span className="row-main">
+                        <span className="row-title truncate">{guest.name || "Unnamed guest"}</span>
+                        <span className="row-sub">{guest.phone_e164}</span>
+                      </span>
+                      <span className="t-cap shrink-0">{guest.visit_count} visits{guest.no_show_count ? ` \u00b7 ${guest.no_show_count} no-shows` : ""}</span>
+                    </button>
+                  ))}
                 </div>
-              </label>
-              <label className="text-[10px] uppercase tracking-widest text-text/45">Name
-                <input value={name} onChange={(event) => { setName(event.target.value); setSelectedGuest(null); }} placeholder="Guest name" className="mt-1.5 min-h-11 w-full rounded border border-border-subtle bg-white px-3 text-sm text-primary placeholder:text-text/30" />
-              </label>
+              )}
+
+              {selectedGuest && (
+                <div className="card">
+                  <p className="t-h4">{selectedGuest.name} · {selectedGuest.visit_count} visits{selectedGuest.no_show_count ? ` \u00b7 ${selectedGuest.no_show_count} no-shows` : ""}</p>
+                  {selectedGuest.notes && <p className="t-sub mt-1">Note: {selectedGuest.notes}</p>}
+                  {selectedGuest.tags?.length > 0 && <p className="t-sub mt-1">Tags: {selectedGuest.tags.join(", ")}</p>}
+                </div>
+              )}
+
+              <FormField label="Email (optional)">
+                <AdminInput type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="guest@example.com" />
+              </FormField>
             </div>
-
-            {matches.length > 0 && (
-              <div className="mt-2 divide-y divide-border-subtle rounded border border-border-subtle bg-white">
-                {matches.map((guest) => (
-                  <button type="button" key={guest.id} onClick={() => pickGuest(guest)} className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs hover:bg-background">
-                    <span className="min-w-0 truncate">
-                      <span className="font-medium text-primary">{guest.name || "Unnamed guest"}</span>
-                      <span className="ml-2 text-text/40">{guest.phone_e164}</span>
-                    </span>
-                    <span className="shrink-0 text-text/40">{guest.visit_count} visits{guest.no_show_count ? ` \u00b7 ${guest.no_show_count} no-shows` : ""}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {selectedGuest && (
-              <div className="mt-2 rounded border border-accent-gold/40 bg-accent-gold/10 px-3 py-2 text-xs text-primary">
-                <p className="font-medium">{selectedGuest.name} \u00b7 {selectedGuest.visit_count} visits{selectedGuest.no_show_count ? ` \u00b7 ${selectedGuest.no_show_count} no-shows` : ""}</p>
-                {selectedGuest.notes && <p className="mt-1 text-text/50">Note: {selectedGuest.notes}</p>}
-                {selectedGuest.tags?.length > 0 && <p className="mt-1 text-text/50">Tags: {selectedGuest.tags.join(", ")}</p>}
-              </div>
-            )}
-
-            <label className="mt-2 block text-[10px] uppercase tracking-widest text-text/45">Email <span className="normal-case tracking-normal">(optional)</span>
-              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="guest@example.com" className="mt-1.5 min-h-11 w-full rounded border border-border-subtle bg-white px-3 text-sm text-primary placeholder:text-text/30" />
-            </label>
           </div>
 
           <div>
-            <p className="mb-2 text-[10px] uppercase tracking-widest text-text/45">Booking</p>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <label className="text-[10px] uppercase tracking-widest text-text/45">Party size
-                <input type="number" min={1} max={50} value={partySize} onChange={(event) => setPartySize(Number(event.target.value))} className="mt-1.5 min-h-11 w-full rounded border border-border-subtle bg-white px-3 text-sm text-primary" />
-              </label>
-              <label className="text-[10px] uppercase tracking-widest text-text/45">Date
-                <input type="date" value={date} onChange={(event) => setDate(event.target.value)} className="mt-1.5 min-h-11 w-full rounded border border-border-subtle bg-white px-3 text-sm text-primary" />
-              </label>
-              <label className="text-[10px] uppercase tracking-widest text-text/45">Time
-                <input type="time" value={time} onChange={(event) => setTime(event.target.value)} className="mt-1.5 min-h-11 w-full rounded border border-border-subtle bg-white px-3 text-sm text-primary" />
-              </label>
-              <label className="text-[10px] uppercase tracking-widest text-text/45">Service
-                <select value={serviceId} onChange={(event) => setServiceId(event.target.value)} className="mt-1.5 min-h-11 w-full rounded border border-border-subtle bg-white px-2 text-sm text-primary">
-                  <option value="">Choose…</option>
-                  {services.map((service) => <option key={service.id} value={service.id}>{service.name}</option>)}
-                </select>
-              </label>
-            </div>
+            <h3 className="t-h4 mb-4">Booking</h3>
+            <div className="form">
+              <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
+                <FormField label="Party size">
+                  <AdminInput type="number" min={1} max={50} value={partySize} onChange={(event) => setPartySize(Number(event.target.value))} />
+                </FormField>
+                <FormField label="Date">
+                  <AdminInput type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+                </FormField>
+                <FormField label="Time">
+                  <AdminInput type="time" value={time} onChange={(event) => setTime(event.target.value)} />
+                </FormField>
+                <FormField label="Service">
+                  <AdminSelect value={serviceId} onChange={(event) => setServiceId(event.target.value)}>
+                    <option value="">Choose…</option>
+                    {services.map((service) => <option key={service.id} value={service.id}>{service.name}</option>)}
+                  </AdminSelect>
+                </FormField>
+              </div>
 
-            <div className="mt-2 flex flex-wrap gap-2">
-              {(["phone", "eazydiner", "other"] as Source[]).map((option) => (
-                <button type="button" key={option} onClick={() => setSource(option)} aria-pressed={source === option} className={`min-h-9 rounded-full border px-4 text-xs capitalize ${source === option ? "border-primary bg-primary text-white" : "border-border-subtle bg-white text-text/60"}`}>
-                  {option}
-                </button>
-              ))}
-            </div>
-            {source === "eazydiner" && (
-              <input value={externalReference} onChange={(event) => setExternalReference(event.target.value)} placeholder="EazyDiner booking ID" className="mt-2 min-h-11 w-full rounded border border-border-subtle bg-white px-3 text-sm text-primary placeholder:text-text/30" />
-            )}
+              <FormField group label="Source">
+                <div className="pills -ml-1">
+                  {(["phone", "eazydiner", "other"] as Source[]).map((option) => (
+                    <button type="button" key={option} onClick={() => setSource(option)} aria-pressed={source === option} className="pill">
+                      {sourceLabel(option)}
+                    </button>
+                  ))}
+                </div>
+                {source === "eazydiner" && (
+                  <AdminInput value={externalReference} onChange={(event) => setExternalReference(event.target.value)} placeholder="EazyDiner booking ID" className="mt-3" />
+                )}
+              </FormField>
 
-            <textarea value={specialRequests} onChange={(event) => setSpecialRequests(event.target.value)} placeholder="Special requests (optional)" rows={2} className="mt-2 w-full rounded border border-border-subtle bg-white px-3 py-2 text-sm text-primary placeholder:text-text/30" />
+              <AdminTextarea value={specialRequests} onChange={(event) => setSpecialRequests(event.target.value)} placeholder="Special requests (optional)" rows={2} />
+            </div>
           </div>
 
           <div>
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <p className="text-[10px] uppercase tracking-widest text-text/45">Table</p>
-              {suggestionLoading && <span className="text-[10px] text-text/35">Checking…</span>}
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h3 className="t-h4">Table</h3>
+              {suggestionLoading && <span className="t-cap">Checking…</span>}
             </div>
 
             {suggestion?.warnings?.length ? (
-              <div className="mb-2 space-y-1">
+              <div className="mb-4 space-y-2">
                 {suggestion.warnings.map((code) => (
-                  <p key={code} className="rounded border border-accent-gold/40 bg-accent-gold/10 px-3 py-1.5 text-[11px] text-primary">{WARNING_TEXT[code] || code}</p>
+                  <p key={code} className="rounded-xl bg-(--warn-tint) px-4 py-3 text-sm text-(--warn)">{WARNING_TEXT[code] || code}</p>
                 ))}
               </div>
             ) : null}
 
-            <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => setTableMode("auto")} aria-pressed={tableMode === "auto"} className={`min-h-10 rounded-full border px-4 text-xs ${tableMode === "auto" ? "border-primary bg-primary text-white" : "border-border-subtle bg-white text-text/60"}`}>
+            <div className="pills -ml-1">
+              <button type="button" onClick={() => setTableMode("auto")} aria-pressed={tableMode === "auto"} className="pill">
                 {suggestion?.options?.[0] ? `Suggested: ${suggestion.options[0].labels.join("+")} (${suggestion.options[0].total_capacity} seats)` : "Suggested table"}
               </button>
-              <button type="button" onClick={() => setTableMode("manual")} aria-pressed={tableMode === "manual"} className={`min-h-10 rounded-full border px-4 text-xs ${tableMode === "manual" ? "border-primary bg-primary text-white" : "border-border-subtle bg-white text-text/60"}`}>
+              <button type="button" onClick={() => setTableMode("manual")} aria-pressed={tableMode === "manual"} className="pill">
                 Choose table
               </button>
-              <button type="button" onClick={() => setTableMode("none")} aria-pressed={tableMode === "none"} className={`min-h-10 rounded-full border px-4 text-xs ${tableMode === "none" ? "border-primary bg-primary text-white" : "border-border-subtle bg-white text-text/60"}`}>
+              <button type="button" onClick={() => setTableMode("none")} aria-pressed={tableMode === "none"} className="pill">
                 Decide later
               </button>
             </div>
 
             {tableMode === "manual" && (
-              <div className="mt-3">
+              <div className="mt-6">
                 <div className="mb-2 flex items-center justify-between gap-3">
-                  <p className="text-[10px] uppercase tracking-widest text-text/45">Pick table(s)</p>
-                  <span className={`text-xs ${manualCapacity >= partySize ? "text-accent-olive" : "text-accent"}`}>{manualTableIds.length ? `${manualCapacity} seats selected` : "No tables selected"}</span>
+                  <p className="field-label">Pick table(s)</p>
+                  <span className={`t-cap ${manualCapacity >= partySize ? "text-(--pos)" : "text-(--neg)"}`}>{manualTableIds.length ? `${manualCapacity} seats selected` : "No tables selected"}</span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div className="tiles">
                   {tables.map((table) => {
                     const checked = manualTableIds.includes(table.id);
                     const taken = takenTableIds.has(table.id) && !checked;
                     return (
-                      <button type="button" key={table.id} disabled={taken} onClick={() => toggleManualTable(table.id)} className={`min-h-12 rounded border px-3 text-left text-xs disabled:cursor-not-allowed disabled:opacity-35 ${checked ? "border-accent-gold bg-accent-gold/15 text-primary ring-1 ring-accent-gold" : "border-border-subtle bg-white text-text/60"}`}>
-                        <span className="font-medium">{table.label}</span><span className="ml-2 text-text/40">{table.min_capacity}-{table.max_capacity} seats</span>
-                        {taken && <span className="mt-1 block text-[10px] text-accent">Taken at this time</span>}
+                      <button type="button" key={table.id} disabled={taken} onClick={() => toggleManualTable(table.id)} aria-pressed={checked} className="tile">
+                        <span className="block font-medium">{table.label}</span>
+                        <span className="t-cap block">{table.min_capacity}-{table.max_capacity} seats</span>
+                        {taken && <span className="t-cap mt-1 block text-(--neg)">Taken at this time</span>}
                       </button>
                     );
                   })}
-                  {tables.length === 0 && <p className="col-span-full rounded border border-dashed border-border-subtle p-3 text-xs text-text/45">No bookable tables configured for this restaurant.</p>}
+                  {tables.length === 0 && <p className="t-sub col-span-full">No bookable tables configured for this restaurant.</p>}
                 </div>
               </div>
             )}
           </div>
 
-          <div className="flex flex-wrap gap-2 border-t border-border-subtle pt-4">
-            <button type="button" onClick={() => void submit(false)} disabled={submitting || !serviceId} className="min-h-11 flex-1 rounded bg-accent px-5 text-xs font-medium uppercase tracking-widest text-white disabled:opacity-40">
-              {submitting ? "Saving…" : "Confirm booking"}
-            </button>
-            <button type="button" onClick={onClose} className="min-h-11 rounded border border-border-subtle px-4 text-xs text-text/55">Cancel</button>
+          {/* Messages sit by the buttons: the sheet scrolls, and "Book anyway" must be in view after Confirm. */}
+          <div className="space-y-3">
+            {notice && <p className="rounded-xl bg-(--pos-tint) px-4 py-3 text-sm text-(--pos)" role="status">{notice}</p>}
+            {error && (
+              <div className="rounded-xl bg-(--neg-tint) px-4 py-3" role="alert">
+                <p className="text-sm text-(--neg)">{error.text}</p>
+                {error.overridable && (
+                  <button type="button" onClick={() => void submit(true)} disabled={submitting} className="btn btn-secondary btn-sm mt-3">
+                    {error.code === "NO_TABLE_AVAILABLE" && tableMode === "auto" ? "Book anyway (no table yet)" : "Book anyway"}
+                  </button>
+                )}
+              </div>
+            )}
+            <div className="flex flex-wrap gap-3">
+              <button type="button" onClick={() => void submit(false)} disabled={submitting || !serviceId} className="btn btn-primary flex-1">
+                {submitting ? "Saving…" : "Confirm booking"}
+              </button>
+              <button type="button" onClick={onClose} className="btn btn-secondary">Cancel</button>
+            </div>
           </div>
         </div>
       </section>

@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home Layouts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Schibsted+Grotesk:wght@400..700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: oklch(96% 0.008 82);
+  --ink: oklch(30% 0.05 228);
+  --ink-2: oklch(30% 0.05 228 / .66);
+  --rule: oklch(30% 0.05 228 / .14);
+  --red: oklch(50% 0.19 25);
+}
+* { box-sizing: border-box; margin: 0; }
+body { background: var(--paper); color: var(--ink); font: 400 16px/1.55 "Schibsted Grotesk", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+.page { max-width: 1120px; margin: 0 auto; padding: 56px 24px 120px; }
+h1 { font: 400 clamp(36px, 5vw, 56px)/1.05 "Young Serif", Georgia, serif; letter-spacing: -0.015em; }
+.lede { max-width: 62ch; margin-top: 14px; color: var(--ink-2); }
+.lede b { color: var(--ink); font-weight: 600; }
+.lay { margin-top: 72px; padding-top: 28px; border-top: 1px solid var(--rule); }
+.lay header { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; align-items: baseline; }
+.lay header b { font: 400 34px/1 "Young Serif", Georgia, serif; color: var(--red); grid-row: span 2; }
+.lay header h2 { font: 600 20px/1.2 "Schibsted Grotesk", sans-serif; }
+.lay header p { color: var(--ink-2); max-width: 70ch; }
+.lay header a { color: var(--ink); font-weight: 600; }
+.frames { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; margin-top: 24px; }
+figure { display: grid; gap: 10px; }
+figcaption { font-size: 13px; color: var(--ink-2); }
+.scaler { position: relative; overflow: hidden; border-radius: 14px; background: #fff; box-shadow: 0 0 0 1px var(--rule), 0 30px 60px -36px oklch(20% 0.03 55 / .45); }
+.desk .scaler { width: 760px; height: 475px; }
+.desk iframe { width: 1440px; height: 900px; transform: scale(0.5278); }
+.mob .scaler { width: 258px; height: 558px; border-radius: 28px; }
+.mob iframe { width: 390px; height: 844px; transform: scale(0.6615); }
+iframe { position: absolute; top: 0; left: 0; border: 0; transform-origin: 0 0; }
+.refs ul { margin: 22px 0 0; padding: 0; list-style: none; display: grid; gap: 12px; max-width: 86ch; }
+.refs li { color: var(--ink-2); }
+.refs li b { color: var(--ink); font-weight: 600; }
+.refs li i { font-style: normal; color: var(--red); }
+.refs li a { color: var(--ink); font-weight: 600; }
+@media (max-width: 1100px) {
+  .desk .scaler { width: 576px; height: 360px; }
+  .desk iframe { transform: scale(0.4); }
+}
+</style>
+</head>
+<body>
+<main class="page">
+  <h1>Home layouts, side by side</h1>
+  <p class="lede">Three ways to lay out the home page, each live in a desktop frame and a phone frame. They share the same content and booking flow. <b>Scroll inside a frame</b> and tap <b>Book a table</b> to try it in that layout. References from Awwwards are at the bottom.</p>
+
+  <section class="lay">
+    <header>
+      <b>A</b>
+      <h2>Menu card</h2>
+      <p>A centred column on warm white, like the top of a printed menu, with real photos placed around it and fading in as you scroll. The calmest; booking sits in the middle of the first screen. <a href="/experiment?layout=a" target="_blank">Open full size</a></p>
+    </header>
+    <div class="frames">
+      <figure class="desk"><div class="scaler"><iframe src="/experiment?layout=a&amp;embed=1" title="Layout A on desktop" loading="lazy"></iframe></div><figcaption>Desktop · 1440 × 900</figcaption></figure>
+      <figure class="mob"><div class="scaler"><iframe src="/experiment?layout=a&amp;embed=1" title="Layout A on a phone" loading="lazy"></iframe></div><figcaption>Phone · 390 × 844</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="lay">
+    <header>
+      <b>B</b>
+      <h2>Editorial</h2>
+      <p>The classic restaurant-site layout, done carefully: everything hangs off one left edge on a 12-column grid. The name and the line, then one wide photo with two smaller ones stacked beside it, then the story starting on column five. Nothing floats. On phones it is one clean column. <a href="/experiment?layout=b" target="_blank">Open full size</a></p>
+    </header>
+    <div class="frames">
+      <figure class="desk"><div class="scaler"><iframe src="/experiment?layout=b&amp;embed=1" title="Layout B on desktop" loading="lazy"></iframe></div><figcaption>Desktop · 1440 × 900</figcaption></figure>
+      <figure class="mob"><div class="scaler"><iframe src="/experiment?layout=b&amp;embed=1" title="Layout B on a phone" loading="lazy"></iframe></div><figcaption>Phone · 390 × 844</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="lay">
+    <header>
+      <b>C</b>
+      <h2>Immersive</h2>
+      <p>The first screen is the room itself: a full-bleed candlelit photo with the name and two buttons over it. As you scroll, the photo pulls back into a framed card and the name lands on the page below it. The most atmospheric; the most like walking in. <a href="/experiment?layout=c" target="_blank">Open full size</a></p>
+    </header>
+    <div class="frames">
+      <figure class="desk"><div class="scaler"><iframe src="/experiment?layout=c&amp;embed=1" title="Layout C on desktop" loading="lazy"></iframe></div><figcaption>Desktop · 1440 × 900</figcaption></figure>
+      <figure class="mob"><div class="scaler"><iframe src="/experiment?layout=c&amp;embed=1" title="Layout C on a phone" loading="lazy"></iframe></div><figcaption>Phone · 390 × 844</figcaption></figure>
+    </div>
+  </section>
+  <section class="lay refs">
+    <header>
+      <b>&rarr;</b>
+      <h2>Where these come from</h2>
+      <p>Awwwards restaurant and food sites worth a look (HM is Honorable Mention, SOTD is Site of the Day). Ideas to borrow, not looks to copy.</p>
+    </header>
+    <ul>
+      <li><b>Enoteca della Valpolicella</b>, Verona, HM 2025. A cream menu-card intro that grows into the page; one tilted photo per numbered chapter. <i>Closest to A.</i> <a href="https://www.awwwards.com/sites/enoteca-della-valpollicella" target="_blank" rel="noreferrer">Awwwards</a></li>
+      <li><b>Studenterkilden</b>, Copenhagen, HM 2026. A centred, all-type first screen with Book a table in a warm colour on every screen size. <i>A.</i> <a href="https://www.awwwards.com/sites/studenterkilden" target="_blank" rel="noreferrer">Awwwards</a></li>
+      <li><b>Gucci Osteria</b>, Florence, SOTD 2021. Ruled lines like a ledger and arch-shaped photo masks, an echo of the haveli's arches. <i>B.</i> <a href="https://www.awwwards.com/sites/gucci-osteria" target="_blank" rel="noreferrer">Awwwards</a></li>
+      <li><b>Da Pietro 1955</b>, Como, HM 2025. A night photo of a candlelit table with a full-width "Reserve your table" bar on its bottom edge. <i>C.</i> <a href="https://www.awwwards.com/sites/da-pietro-1955" target="_blank" rel="noreferrer">Awwwards</a></li>
+      <li><b>Caff&egrave; Gilli</b>, Florence, HM 2026. A full-width photo that shrinks into a framed one as you scroll: the zoom-out in C and the Instagram strip. <i>C.</i> <a href="https://www.awwwards.com/sites/caffe-gilli" target="_blank" rel="noreferrer">Awwwards</a></li>
+      <li><b>Flora</b>, Jesolo, HM 2024. Booking as a pop-up on the same page, like our sheet. <a href="https://www.awwwards.com/sites/flora-cucina-bottega-vino" target="_blank" rel="noreferrer">Awwwards</a></li>
+      <li><b>Da Maria</b>, Rome (a concept template), HM 2026. A paper-style booking card with call and email above a short form. <a href="https://www.awwwards.com/sites/da-maria" target="_blank" rel="noreferrer">Awwwards</a></li>
+    </ul>
+  </section>
+</main>
+</body>
+</html>

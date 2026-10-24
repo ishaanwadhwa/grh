@@ -1,21 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { createBrowserClient } from "@supabase/ssr";
-import { AdminInput } from "@/components/admin/FormField";
-import TimePicker from "@/components/ui/TimePicker";
+import { createClient } from "@/lib/supabase/client";
+import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import { AdminInput, AdminSelect, FormField } from "@/components/admin/FormField";
+import { DAYS, Loading, RestaurantHeader, fmtTime, useNotice } from "@/components/admin/ui";
 
-const DAYS = [
-  { value: 0, label: "Sun" },
-  { value: 1, label: "Mon" },
-  { value: 2, label: "Tue" },
-  { value: 3, label: "Wed" },
-  { value: 4, label: "Thu" },
-  { value: 5, label: "Fri" },
-  { value: 6, label: "Sat" },
-];
+// Same choices the old time picker offered: every half hour, plus 23:59 for closing.
+const TIMES = Array.from({ length: 48 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
+const timeOptions = (value: string, extra: string[] = []) => [...new Set([...TIMES, ...extra, value].filter(Boolean))].sort();
 
 interface ServiceForm {
   id?: string;
@@ -29,6 +23,16 @@ interface ServiceForm {
   opens_at: string;
   closes_at: string;
 }
+
+// The number fields: input bounds and the range save() checks. max_party_size's floor is the form's min_party_size.
+const NUMBERS = [
+  { key: "slot_interval_minutes", label: "Slot interval (minutes)", min: 5, max: 240, step: 5, error: "Use an interval between 5 and 240 minutes." },
+  { key: "seating_duration_minutes", label: "Seating duration (minutes)", min: 15, max: 480, step: 15, error: "Use a duration between 15 and 480 minutes." },
+  { key: "buffer_minutes", label: "Turnaround buffer (minutes)", min: 0, max: 180, step: 5, error: "Use a buffer between 0 and 180 minutes." },
+  { key: "min_party_size", label: "Smallest party", min: 1, max: 50, step: 1, error: "Minimum party size must be between 1 and 50." },
+  { key: "max_party_size", label: "Largest party", min: 1, max: 50, step: 1, error: "Maximum must be at least the minimum and no more than 50." },
+] as const;
+type NumberField = (typeof NUMBERS)[number];
 
 const blankService = (): ServiceForm => ({
   name: "Dinner",
@@ -49,14 +53,12 @@ export default function RestaurantAvailabilityPage() {
   const [form, setForm] = useState<ServiceForm>(blankService());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [notice, setNotice] = useState("");
-  const [noticeIsError, setNoticeIsError] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [deleteTarget, setDeleteTarget] = useState<ServiceForm | null>(null);
+  const [adding, setAdding] = useState(false); // the new-service form stays folded away until asked for
+  const { say, fail, clear, snackbar } = useNotice();
 
-  const supabase = useMemo(() => createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  ), []);
+  const supabase = createClient();
 
   const load = useCallback(async () => {
     const [{ data: restaurant }, { data: rows }] = await Promise.all([
@@ -93,6 +95,8 @@ export default function RestaurantAvailabilityPage() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(); }, [load]);
 
+  const floor = (field: NumberField) => field.key === "max_party_size" ? form.min_party_size : field.min;
+
   const save = async () => {
     const errors: Record<string, string> = {};
     if (!form.name.trim()) errors.name = "Enter a service name.";
@@ -103,24 +107,12 @@ export default function RestaurantAvailabilityPage() {
       errors.opens_at = "Open and close times cannot be the same.";
       errors.closes_at = "Choose a different closing time.";
     }
-    if (!Number.isInteger(Number(form.slot_interval_minutes)) || form.slot_interval_minutes < 5 || form.slot_interval_minutes > 240) {
-      errors.slot_interval_minutes = "Use an interval between 5 and 240 minutes.";
-    }
-    if (!Number.isInteger(Number(form.seating_duration_minutes)) || form.seating_duration_minutes < 15 || form.seating_duration_minutes > 480) {
-      errors.seating_duration_minutes = "Use a duration between 15 and 480 minutes.";
-    }
-    if (!Number.isInteger(Number(form.buffer_minutes)) || form.buffer_minutes < 0 || form.buffer_minutes > 180) {
-      errors.buffer_minutes = "Use a buffer between 0 and 180 minutes.";
-    }
-    if (!Number.isInteger(Number(form.min_party_size)) || form.min_party_size < 1 || form.min_party_size > 50) {
-      errors.min_party_size = "Minimum party size must be between 1 and 50.";
-    }
-    if (!Number.isInteger(Number(form.max_party_size)) || form.max_party_size < form.min_party_size || form.max_party_size > 50) {
-      errors.max_party_size = "Maximum must be at least the minimum and no more than 50.";
+    for (const field of NUMBERS) {
+      const value = form[field.key];
+      if (!Number.isInteger(value) || value < floor(field) || value > field.max) errors[field.key] = field.error;
     }
     setFieldErrors(errors);
-    setNotice("");
-    setNoticeIsError(false);
+    clear();
     if (Object.keys(errors).length) return;
 
     setSaving(true);
@@ -129,54 +121,46 @@ export default function RestaurantAvailabilityPage() {
         p_service_id: form.id || null,
         p_restaurant_id: restaurantId,
         p_name: form.name.trim(),
-        p_slot_interval_minutes: Number(form.slot_interval_minutes),
-        p_seating_duration_minutes: Number(form.seating_duration_minutes),
-        p_buffer_minutes: Number(form.buffer_minutes),
-        p_min_party_size: Number(form.min_party_size),
-        p_max_party_size: Number(form.max_party_size),
+        p_slot_interval_minutes: form.slot_interval_minutes,
+        p_seating_duration_minutes: form.seating_duration_minutes,
+        p_buffer_minutes: form.buffer_minutes,
+        p_min_party_size: form.min_party_size,
+        p_max_party_size: form.max_party_size,
         p_days: form.days,
         p_opens_at: form.opens_at,
         p_closes_at: form.closes_at,
       });
 
       if (error || !serviceId) {
-        setNotice(error?.message || "The service was not saved. Check your connection and try again.");
-        setNoticeIsError(true);
-        setSaving(false);
-        return;
+        fail(error ?? "The service was not saved. Check your connection and try again.");
+      } else {
+        say("Booking hours saved.");
+        setFieldErrors({});
+        await load();
+        setForm(blankService());
+        setAdding(false);
       }
-
-      setNotice("Booking hours saved.");
-    setNoticeIsError(false);
-    setFieldErrors({});
-    await load();
-    setForm(blankService());
-    setSaving(false);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Could not save booking hours.");
-      setNoticeIsError(true);
-      setSaving(false);
+      fail(error instanceof Error ? error.message : "Could not save booking hours.");
     }
+    setSaving(false); // not in `finally`: the React Compiler lint skips any component with a finally clause
   };
 
   const remove = async (serviceId: string) => {
-    if (!window.confirm("Delete this booking service and its opening hours?")) return;
+    setDeleteTarget(null);
     const { error } = await supabase.from("restaurant_services").delete().eq("id", serviceId);
     if (error) {
-      setNotice(error.message);
-      setNoticeIsError(true);
+      fail(error);
     } else {
       setServices((current) => current.filter((item) => item.id !== serviceId));
       if (form.id === serviceId) setForm(blankService());
-      setNotice("Service deleted.");
-      setNoticeIsError(false);
+      say("Service deleted.");
     }
   };
 
   const update = (key: keyof ServiceForm, value: string | number | number[]) => {
     setForm((current) => ({ ...current, [key]: value }));
-    setNotice("");
-    setNoticeIsError(false);
+    clear();
     setFieldErrors((current) => {
       const next = { ...current };
       delete next[key];
@@ -192,119 +176,117 @@ export default function RestaurantAvailabilityPage() {
     });
   };
 
-  if (loading) return <div className="p-6 text-sm text-text/40">Loading booking settings…</div>;
+  const resetForm = (next: ServiceForm) => { setForm(next); setFieldErrors({}); clear(); };
 
-  return (
-    <div className="mx-auto max-w-3xl p-4 pb-12 md:p-8">
-      <Link href={`/admin/restaurants/${restaurantId}`} className="text-xs text-text/40 hover:text-text">← {restaurantName}</Link>
-      <h1 className="mt-4 font-display text-2xl text-text">Booking hours</h1>
-      <p className="mt-2 text-sm text-text/50">Set recurring services. Bookable times are generated from these hours and real table availability.</p>
+  const numberField = (field: NumberField) => (
+    <FormField key={field.key} label={field.label} error={fieldErrors[field.key]}>
+      <AdminInput aria-invalid={!!fieldErrors[field.key]} type="number" min={floor(field)} max={field.max} step={field.step} value={form[field.key]} onChange={(e) => update(field.key, Number(e.target.value))} />
+    </FormField>
+  );
 
-      <section className="mt-6 rounded border border-border-subtle bg-white p-4 md:p-6">
-        <h2 className="font-medium text-text">{form.id ? `Edit ${form.name}` : "Add a service"}</h2>
-        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <label className="text-xs text-text/50">Service name
-            <AdminInput className={`mt-2 ${fieldErrors.name ? "border-red-500 bg-red-50" : ""}`} aria-invalid={!!fieldErrors.name} value={form.name} onChange={(e) => update("name", e.target.value)} placeholder="Dinner" />
-            {fieldErrors.name && <span className="mt-1 block text-xs text-red-600">{fieldErrors.name}</span>}
-          </label>
-          <div>
-            <TimePicker
-              label="Open"
-              value={form.opens_at}
-              onChange={(time) => update("opens_at", time)}
-              openHour={0}
-              closeHour={24}
-              variant="light"
-            />
-            {fieldErrors.opens_at && <p className="mt-1 text-xs text-red-600">{fieldErrors.opens_at}</p>}
-          </div>
-          <div>
-            <TimePicker
-              label="Close"
-              value={form.closes_at}
-              onChange={(time) => update("closes_at", time)}
-              openHour={0}
-              closeHour={24}
-              extraTimes={["23:59"]}
-              variant="light"
-            />
-            {fieldErrors.closes_at && <p className="mt-1 text-xs text-red-600">{fieldErrors.closes_at}</p>}
-            <p className="mt-1 text-[11px] text-text/35">A closing time earlier than opening means the service closes after midnight.</p>
-          </div>
-          <label className="text-xs text-text/50">Slot interval (minutes)
-            <AdminInput className={`mt-2 ${fieldErrors.slot_interval_minutes ? "border-red-500 bg-red-50" : ""}`} aria-invalid={!!fieldErrors.slot_interval_minutes} type="number" min={5} max={240} step={5} value={form.slot_interval_minutes} onChange={(e) => update("slot_interval_minutes", Number(e.target.value))} />
-            {fieldErrors.slot_interval_minutes && <span className="mt-1 block text-xs text-red-600">{fieldErrors.slot_interval_minutes}</span>}
-          </label>
-          <label className="text-xs text-text/50">Seating duration (minutes)
-            <AdminInput className={`mt-2 ${fieldErrors.seating_duration_minutes ? "border-red-500 bg-red-50" : ""}`} aria-invalid={!!fieldErrors.seating_duration_minutes} type="number" min={15} max={480} step={15} value={form.seating_duration_minutes} onChange={(e) => update("seating_duration_minutes", Number(e.target.value))} />
-            {fieldErrors.seating_duration_minutes && <span className="mt-1 block text-xs text-red-600">{fieldErrors.seating_duration_minutes}</span>}
-          </label>
-          <label className="text-xs text-text/50">Turnaround buffer (minutes)
-            <AdminInput className={`mt-2 ${fieldErrors.buffer_minutes ? "border-red-500 bg-red-50" : ""}`} aria-invalid={!!fieldErrors.buffer_minutes} type="number" min={0} max={180} step={5} value={form.buffer_minutes} onChange={(e) => update("buffer_minutes", Number(e.target.value))} />
-            {fieldErrors.buffer_minutes && <span className="mt-1 block text-xs text-red-600">{fieldErrors.buffer_minutes}</span>}
-          </label>
-          <label className="text-xs text-text/50">Minimum party size
-            <AdminInput className={`mt-2 ${fieldErrors.min_party_size ? "border-red-500 bg-red-50" : ""}`} aria-invalid={!!fieldErrors.min_party_size} type="number" min={1} max={50} value={form.min_party_size} onChange={(e) => update("min_party_size", Number(e.target.value))} />
-            {fieldErrors.min_party_size && <span className="mt-1 block text-xs text-red-600">{fieldErrors.min_party_size}</span>}
-          </label>
-          <label className="text-xs text-text/50">Maximum party size
-            <AdminInput className={`mt-2 ${fieldErrors.max_party_size ? "border-red-500 bg-red-50" : ""}`} aria-invalid={!!fieldErrors.max_party_size} type="number" min={1} max={50} value={form.max_party_size} onChange={(e) => update("max_party_size", Number(e.target.value))} />
-            {fieldErrors.max_party_size && <span className="mt-1 block text-xs text-red-600">{fieldErrors.max_party_size}</span>}
-          </label>
-        </div>
+  if (loading) return <div className="page"><Loading /></div>;
 
-        <fieldset className={`mt-5 rounded ${fieldErrors.days ? "ring-1 ring-red-500 ring-offset-4" : ""}`} aria-invalid={!!fieldErrors.days}>
-          <legend className="text-xs text-text/50">Days offered</legend>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {DAYS.map((day) => {
-              const checked = form.days.includes(day.value);
+  const editor = (
+    <section className="card">
+      <h2 className="t-h4 mb-6">{form.id ? `Edit ${form.name}` : "Add a service"}</h2>
+      <div className="form">
+        <FormField label="Service name" error={fieldErrors.name}>
+          <AdminInput aria-invalid={!!fieldErrors.name} value={form.name} onChange={(e) => update("name", e.target.value)} placeholder="Dinner" />
+        </FormField>
+
+        <fieldset aria-invalid={!!fieldErrors.days}>
+          <legend className="field-label">Days offered</legend>
+          <div className="pills mt-2">
+            {DAYS.map((label, day) => {
+              const checked = form.days.includes(day);
               return (
                 <button
-                  key={day.value}
+                  key={day}
                   type="button"
                   aria-pressed={checked}
-                  onClick={() => update("days", checked ? form.days.filter((value) => value !== day.value) : [...form.days, day.value].sort())}
-                  className={`min-w-12 rounded-full border px-3 py-2 text-xs ${checked ? "border-text bg-text text-white" : "border-border-subtle text-text/50"}`}
+                  onClick={() => update("days", checked ? form.days.filter((value) => value !== day) : [...form.days, day].sort())}
+                  className="pill"
                 >
-                  {day.label}
+                  {label}
                 </button>
               );
             })}
           </div>
-          {fieldErrors.days && <p className="mt-2 text-xs text-red-600">{fieldErrors.days}</p>}
+          {fieldErrors.days && <p className="hint error">{fieldErrors.days}</p>}
         </fieldset>
 
-        {notice && <p className={`mt-4 text-sm ${noticeIsError ? "text-red-600" : "text-green-700"}`} role={noticeIsError ? "alert" : "status"}>{notice}</p>}
-        <div className="mt-5 flex flex-wrap gap-3">
-          <button type="button" onClick={save} disabled={saving} className="min-h-11 bg-text px-5 text-xs uppercase tracking-widest text-white disabled:opacity-50">
-            {saving ? "Saving…" : form.id ? "Save service" : "Add service"}
-          </button>
-          {form.id && <button type="button" onClick={() => { setForm(blankService()); setFieldErrors({}); setNotice(""); setNoticeIsError(false); }} className="min-h-11 px-4 text-xs text-text/50">Cancel edit</button>}
+        <div className="form-2">
+          <FormField label="Opens" error={fieldErrors.opens_at}>
+            <AdminSelect aria-invalid={!!fieldErrors.opens_at} value={form.opens_at} onChange={(e) => update("opens_at", e.target.value)}>
+              {timeOptions(form.opens_at).map((time) => <option key={time} value={time}>{fmtTime(time)}</option>)}
+            </AdminSelect>
+          </FormField>
+          <FormField label="Closes" error={fieldErrors.closes_at} hint="Earlier than opening means it closes after midnight.">
+            <AdminSelect aria-invalid={!!fieldErrors.closes_at} value={form.closes_at} onChange={(e) => update("closes_at", e.target.value)}>
+              {timeOptions(form.closes_at, ["23:59"]).map((time) => <option key={time} value={time}>{fmtTime(time)}</option>)}
+            </AdminSelect>
+          </FormField>
         </div>
-      </section>
 
-      <section className="mt-8">
-        <h2 className="text-xs uppercase tracking-widest text-text/40">Existing services</h2>
-        <div className="mt-3 space-y-3">
-          {services.length === 0 ? (
-            <p className="rounded border border-dashed border-border-subtle p-5 text-sm text-text/40">No booking hours yet. Add at least one service to accept online reservations.</p>
-          ) : services.map((service) => (
-            <article key={service.id} className="rounded border border-border-subtle bg-white p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h3 className="font-medium text-text">{service.name}</h3>
-                  <p className="mt-1 text-sm text-text/50">{service.days.map((day) => DAYS.find((item) => item.value === day)?.label).join(", ")} · {service.opens_at}–{service.closes_at}{service.opens_at >= service.closes_at ? " (next day)" : ""}</p>
-                  <p className="mt-1 text-xs text-text/35">Every {service.slot_interval_minutes} min · {service.seating_duration_minutes} min seating + {service.buffer_minutes} min buffer · parties {service.min_party_size}–{service.max_party_size}</p>
-                </div>
-                <div className="flex gap-4 text-xs">
-                  <button type="button" onClick={() => { setForm(service); setFieldErrors({}); setNotice(""); setNoticeIsError(false); }} className="text-text/50 underline">Edit</button>
-                  <button type="button" onClick={() => void remove(service.id!)} className="text-red-600 underline">Delete</button>
-                </div>
-              </div>
-            </article>
-          ))}
+        <div className="form-2 sm:grid-cols-3">{NUMBERS.slice(0, 3).map(numberField)}</div>
+        <div className="form-2">{NUMBERS.slice(3).map(numberField)}</div>
+
+        <div className="flex flex-wrap gap-3">
+          <button type="button" onClick={save} disabled={saving} className="btn btn-primary">
+            {saving ? "Saving…" : form.id ? "Save booking hours" : "Add service"}
+          </button>
+          {(form.id || services.length > 0) && <button type="button" onClick={() => { resetForm(blankService()); setAdding(false); }} className="btn btn-secondary">Cancel</button>}
         </div>
-      </section>
+      </div>
+    </section>
+  );
+
+  return (
+    <div className="page page-narrow">
+      <RestaurantHeader id={restaurantId} name={restaurantName} current="hours" />
+      <p className="t-sub mb-6">Bookable times come from these hours and real table availability.</p>
+
+      <div className="stack">
+        {services.length === 0 && (
+          <p className="t-sub">No booking hours yet. Add at least one service to take bookings online.</p>
+        )}
+        {services.map((service) => service.id === form.id ? <div key={service.id}>{editor}</div> : (
+          <article key={service.id} className="card">
+            <div className="card-head">
+              <h3 className="t-h4">{service.name}</h3>
+              <div className="flex gap-1">
+                <button type="button" onClick={() => resetForm(service)} className="btn btn-tertiary btn-sm">Edit</button>
+                <button type="button" onClick={() => setDeleteTarget(service)} className="btn btn-danger btn-sm">Delete</button>
+              </div>
+            </div>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
+              <div className="kv">
+                <dt>Days</dt>
+                <dd>{service.days.length === 7 ? "Every day" : service.days.map((day) => DAYS[day]).join(", ")}</dd>
+              </div>
+              <div className="kv">
+                <dt>Hours</dt>
+                <dd>{fmtTime(service.opens_at)} – {fmtTime(service.closes_at)}{service.opens_at >= service.closes_at ? " (next day)" : ""}</dd>
+              </div>
+              <div className="kv"><dt>Slots</dt><dd>Every {service.slot_interval_minutes} min</dd></div>
+              <div className="kv"><dt>Seating</dt><dd>{service.seating_duration_minutes} min + {service.buffer_minutes} min buffer</dd></div>
+              <div className="kv"><dt>Party size</dt><dd>{service.min_party_size}–{service.max_party_size}</dd></div>
+            </dl>
+          </article>
+        ))}
+        {!form.id && (adding || services.length === 0
+          ? editor
+          : <button type="button" onClick={() => setAdding(true)} className="btn btn-secondary justify-self-start">Add a service</button>)}
+      </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete this service?"
+        message={`${deleteTarget?.name} and its booking hours will be deleted. Guests won't be able to book it.`}
+        onConfirm={() => { if (deleteTarget?.id) void remove(deleteTarget.id); }}
+        onCancel={() => setDeleteTarget(null)}
+      />
+      {snackbar}
     </div>
   );
 }

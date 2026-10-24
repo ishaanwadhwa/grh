@@ -1,22 +1,27 @@
 "use client";
 
+// Overview: today first. What's booked, what needs a table, who's checking in. Setup lives below.
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { createBrowserClient } from "@supabase/ssr";
+import { createClient } from "@/lib/supabase/client";
+import { ENDED_FILTER, WITH_TABLES, needsTable, tablesOf } from "@/components/admin/floor";
+import { Chevron, Empty, Loading, PageHeader, StatusTag, fmtDate, fmtDay, fmtMoney, fmtTime, plural, todayIn, useNotice } from "@/components/admin/ui";
 
-interface Stats {
-  properties: number;
-  rooms: number;
-  restaurants: number;
-  events: number;
-  bookings: number;
-  reservations: number;
-}
-
-interface RecentBooking {
+interface TodayReservation {
   id: string;
   guest_name: string;
-  guest_email: string;
+  time: string;
+  party_size: number;
+  status: string;
+  restaurants?: { name: string } | null;
+  needs_attention?: boolean; // set by the booking engine (main, P1A)
+  reservation_table_assignments?: { table_id: string; released_at: string | null }[] | null;
+}
+
+interface Stay {
+  id: string;
+  guest_name: string;
   check_in: string;
   check_out: string;
   status: string;
@@ -24,166 +29,137 @@ interface RecentBooking {
   currency: string;
 }
 
-interface RecentReservation {
-  id: string;
-  guest_name: string;
-  date: string;
-  time: string;
-  party_size: number;
-  status: string;
-}
-
-function StatCard({ label, value, href }: { label: string; value: number; href: string }) {
-  return (
-    <Link
-      href={href}
-      className="bg-white border border-border-subtle p-6 hover:border-accent-gold/30 transition-colors group"
-    >
-      <p className="text-xs uppercase tracking-widest text-text/40">{label}</p>
-      <p className="mt-2 text-3xl font-display text-text group-hover:text-accent-gold transition-colors">
-        {value}
-      </p>
-    </Link>
-  );
-}
-
-export default function AdminDashboard() {
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [recentBookings, setRecentBookings] = useState<RecentBooking[]>([]);
-  const [recentReservations, setRecentReservations] = useState<RecentReservation[]>([]);
+export default function AdminOverview() {
+  const supabase = createClient();
+  const today = todayIn();
+  const [loading, setLoading] = useState(true);
+  const [reservations, setReservations] = useState<TodayReservation[]>([]);
+  const { fail, snackbar } = useNotice();
+  const [stays, setStays] = useState<Stay[]>([]);
+  const [counts, setCounts] = useState({ restaurants: 0, properties: 0, events: 0 });
 
   useEffect(() => {
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-
     async function load() {
-      const [props, rooms, rests, events, bookings, reservations] = await Promise.all([
-        supabase.from("properties").select("id", { count: "exact", head: true }),
-        supabase.from("rooms").select("id", { count: "exact", head: true }),
+      const [res, stay, rests, props, events] = await Promise.all([
+        supabase.from("reservations")
+          .select(`*, restaurants(name), ${WITH_TABLES}`) // "*": needs_attention exists only once main's P1A migrations run
+          .eq("date", today)
+          .not("status", "in", ENDED_FILTER)
+          .order("time"),
+        supabase.from("bookings")
+          .select("id, guest_name, check_in, check_out, status, total_amount, currency")
+          .gte("check_out", today)
+          .neq("status", "cancelled")
+          .order("check_in")
+          .limit(6),
         supabase.from("restaurants").select("id", { count: "exact", head: true }),
+        supabase.from("properties").select("id", { count: "exact", head: true }),
         supabase.from("events").select("id", { count: "exact", head: true }),
-        supabase.from("bookings").select("id", { count: "exact", head: true }),
-        supabase.from("reservations").select("id", { count: "exact", head: true }),
       ]);
-
-      setStats({
-        properties: props.count || 0,
-        rooms: rooms.count || 0,
-        restaurants: rests.count || 0,
-        events: events.count || 0,
-        bookings: bookings.count || 0,
-        reservations: reservations.count || 0,
-      });
-
-      // Recent bookings
-      const { data: bk } = await supabase
-        .from("bookings")
-        .select("id, guest_name, guest_email, check_in, check_out, status, total_amount, currency")
-        .order("created_at", { ascending: false })
-        .limit(5);
-      setRecentBookings(bk || []);
-
-      // Recent reservations
-      const { data: rs } = await supabase
-        .from("reservations")
-        .select("id, guest_name, date, time, party_size, status")
-        .order("created_at", { ascending: false })
-        .limit(5);
-      setRecentReservations(rs || []);
+      if (res.error || stay.error) fail((res.error || stay.error)!);
+      setReservations((res.data || []) as unknown as TodayReservation[]);
+      setStays((stay.data || []) as Stay[]);
+      setCounts({ restaurants: rests.count || 0, properties: props.count || 0, events: events.count || 0 });
+      setLoading(false);
     }
+    void load();
+  }, [supabase, today, fail]);
 
-    load();
-  }, []);
+  if (loading) return <Loading />;
+
+  const guests = reservations.reduce((sum, r) => sum + r.party_size, 0);
+  const waiting = (r: TodayReservation) => needsTable(r, tablesOf(r)) || (!!r.needs_attention && r.status !== "seated");
+  const needTable = reservations.filter(waiting).length;
+  const seatedNow = reservations.filter((r) => r.status === "seated").length;
+  const checkIns = stays.filter((s) => s.check_in === today).length;
+
+  const tiles = [
+    { label: "Bookings today", value: reservations.length, sub: plural(guests, "guest"), href: "/admin/service" },
+    { label: "Need a table", value: needTable, sub: needTable ? "Assign on the live floor" : "All set", href: "/admin/service", warn: needTable > 0 },
+    { label: "Seated now", value: seatedNow, sub: "Across restaurants", href: "/admin/service" },
+    { label: "Check-ins today", value: checkIns, sub: "Room bookings", href: "/admin/bookings" },
+  ];
 
   return (
-    <div className="p-4 md:p-8">
-      <div className="mb-8">
-        <h1 className="font-display text-2xl text-text">Dashboard</h1>
-        <p className="mt-1 text-sm text-text/40">Sunday Rose Club — Admin Overview</p>
+    <div className="page">
+      <PageHeader title="Overview" sub={fmtDay(today)} actions={<Link href="/admin/service" className="btn btn-primary">Open live floor</Link>} />
+
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {tiles.map((tile) => (
+          <Link key={tile.label} href={tile.href} className="card block">
+            <p className="t-sub">{tile.label}</p>
+            <p className={`mt-2 font-[family-name:var(--serif)] text-4xl leading-none t-num ${tile.warn ? "text-(--red)" : ""}`}>{tile.value}</p>
+            <p className="t-cap mt-2">{tile.sub}</p>
+          </Link>
+        ))}
       </div>
 
-      {/* Stats grid */}
-      {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-10">
-          <StatCard label="Properties" value={stats.properties} href="/admin/properties" />
-          <StatCard label="Rooms" value={stats.rooms} href="/admin/properties" />
-          <StatCard label="Restaurants" value={stats.restaurants} href="/admin/restaurants" />
-          <StatCard label="Events" value={stats.events} href="/admin/events" />
-          <StatCard label="Bookings" value={stats.bookings} href="/admin/bookings" />
-          <StatCard label="Reservations" value={stats.reservations} href="/admin/reservations" />
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Recent Bookings */}
-        <div className="bg-white border border-border-subtle">
-          <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between">
-            <h2 className="text-sm font-medium text-text">Recent Bookings</h2>
-            <Link href="/admin/bookings" className="text-xs text-accent-gold hover:underline">
-              View all
-            </Link>
+      <div className="section grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <section className="card flush">
+          <div className="card-head">
+            <h2 className="t-h4">Tables today</h2>
+            <Link href="/admin/reservations" className="btn btn-tertiary btn-sm -mr-3">All reservations</Link>
           </div>
-          <div className="divide-y divide-border-subtle/50">
-            {recentBookings.length === 0 && (
-              <p className="px-5 py-6 text-sm text-text/30">No bookings yet.</p>
-            )}
-            {recentBookings.map((b) => (
-              <div key={b.id} className="px-5 py-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-sm text-text font-medium">{b.guest_name}</p>
-                    <p className="text-xs text-text/40">{b.check_in} → {b.check_out}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm text-text">{b.currency} {b.total_amount.toLocaleString()}</p>
-                    <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 ${
-                      b.status === "confirmed" ? "bg-green-50 text-green-600" :
-                      b.status === "cancelled" ? "bg-red-50 text-red-500" :
-                      "bg-yellow-50 text-yellow-600"
-                    }`}>
-                      {b.status}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Recent Reservations */}
-        <div className="bg-white border border-border-subtle">
-          <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between">
-            <h2 className="text-sm font-medium text-text">Recent Reservations</h2>
-            <Link href="/admin/reservations" className="text-xs text-accent-gold hover:underline">
-              View all
-            </Link>
-          </div>
-          <div className="divide-y divide-border-subtle/50">
-            {recentReservations.length === 0 && (
-              <p className="px-5 py-6 text-sm text-text/30">No reservations yet.</p>
-            )}
-            {recentReservations.map((r) => (
-              <div key={r.id} className="px-5 py-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-sm text-text font-medium">{r.guest_name}</p>
-                    <p className="text-xs text-text/40">{r.date} at {r.time} · {r.party_size} guests</p>
-                  </div>
-                  <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 shrink-0 ${
-                    r.status === "confirmed" ? "bg-green-50 text-green-600" :
-                    r.status === "cancelled" ? "bg-red-50 text-red-500" :
-                    "bg-yellow-50 text-yellow-600"
-                  }`}>
-                    {r.status}
+          {reservations.length === 0 ? (
+            <Empty title="Nothing booked today" sub="New bookings from the website show up here." />
+          ) : (
+            <div className="rows">
+              {reservations.slice(0, 8).map((r) => (
+                <Link key={r.id} href="/admin/service" className="row">
+                  <span className="t-h4 w-[76px] shrink-0">{fmtTime(r.time)}</span>
+                  <span className="row-main">
+                    <span className="row-title truncate">{r.guest_name}</span>
+                    <span className="row-sub">{plural(r.party_size, "guest")}{r.restaurants?.name ? ` · ${r.restaurants.name}` : ""}</span>
                   </span>
-                </div>
-              </div>
-            ))}
+                  {r.status === "seated" ? <StatusTag status="seated" /> : waiting(r) && <StatusTag status="needs_table" />}
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="card flush">
+          <div className="card-head">
+            <h2 className="t-h4">Stays</h2>
+            <Link href="/admin/bookings" className="btn btn-tertiary btn-sm -mr-3">All room bookings</Link>
           </div>
-        </div>
+          {stays.length === 0 ? (
+            <Empty title="No upcoming stays" sub="Room bookings show up here from the day they're made." />
+          ) : (
+            <div className="rows">
+              {stays.map((s) => (
+                <Link key={s.id} href="/admin/bookings" className="row">
+                  <span className="row-main">
+                    <span className="row-title truncate">{s.guest_name}</span>
+                    <span className="row-sub">{fmtDate(s.check_in)} – {fmtDate(s.check_out)} · {fmtMoney(s.total_amount, s.currency)}</span>
+                  </span>
+                  <StatusTag status={s.status} />
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
+
+      <section className="section">
+        <h2 className="t-h4 mb-3">Set up</h2>
+        <div className="card flush rows">
+          {[
+            { href: "/admin/restaurants", label: "Restaurants", sub: `${plural(counts.restaurants, "restaurant")} · details, booking hours, floor plans` },
+            { href: "/admin/properties", label: "Properties", sub: `${plural(counts.properties, "property", "properties")} · rooms and photos` },
+            { href: "/admin/events", label: "Events", sub: plural(counts.events, "event") },
+          ].map((item) => (
+            <Link key={item.href} href={item.href} className="row">
+              <span className="row-main">
+                <span className="row-title">{item.label}</span>
+                <span className="row-sub">{item.sub}</span>
+              </span>
+              <Chevron />
+            </Link>
+          ))}
+        </div>
+      </section>
+      {snackbar}
     </div>
   );
 }

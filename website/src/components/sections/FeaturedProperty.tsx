@@ -1,20 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import Button from "@/components/ui/Button";
 import SectionDivider from "@/components/ui/SectionDivider";
-import { fetchFeaturedProperty } from "@/lib/supabase/browser-queries";
 import type { Property } from "@/lib/data/schema";
 
-export default function FeaturedProperty() {
-  const [property, setProperty] = useState<Property | null>(null);
-
-  useEffect(() => {
-    fetchFeaturedProperty().then(setProperty);
-  }, []);
-
+export default function FeaturedProperty({ property }: { property: Property | null }) {
   if (!property) return null;
 
   const cityName = property.location.split(",")[0];

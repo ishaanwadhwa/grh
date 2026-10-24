@@ -77,6 +77,16 @@ function mapRestaurant(row: any): Restaurant {
     hours: row.hours,
     images: row.images || [],
     instagramUrl: row.instagram_url || null,
+    menuPdfUrl: row.menu_pdf_url || null,
+    area: row.area || "",
+    tagline: row.tagline || "",
+    address: row.address || "",
+    phone: row.phone || "",
+    directionsUrl: row.directions_url || null,
+    google: row.google_rating != null ? { rating: Number(row.google_rating), reviews: row.google_reviews || 0, url: row.google_url || null } : null,
+    bookingDaysAhead: row.booking_days_ahead ?? 14,
+    bookingNote: row.booking_note || "",
+    host: row.host_name ? { name: row.host_name, role: row.host_role || "", quote: row.host_quote || "", photoUrl: row.host_photo_url || null } : null,
   };
 }
 
@@ -169,6 +179,19 @@ export async function getPropertyBySlug(slug: string): Promise<Property | null> 
   return property;
 }
 
+export async function getFeaturedProperty(): Promise<Property | null> {
+  const supabase = getPublicClient();
+  const { data, error } = await supabase
+    .from("properties")
+    .select("*")
+    .eq("featured", true)
+    .limit(1)
+    .single();
+
+  if (error || !data) return null;
+  return mapProperty(data);
+}
+
 // ============================================
 // Rooms
 // ============================================
@@ -235,7 +258,9 @@ export async function getAvailableRooms(
 // Restaurants
 // ============================================
 
-export async function getRestaurants(propertyId?: string): Promise<Restaurant[]> {
+export async function getRestaurants(
+  { propertyId, featured }: { propertyId?: string; featured?: boolean } = {}
+): Promise<Restaurant[]> {
   const supabase = getPublicClient();
   let query = supabase
     .from("restaurants")
@@ -246,6 +271,9 @@ export async function getRestaurants(propertyId?: string): Promise<Restaurant[]>
 
   if (propertyId) {
     query = query.eq("property_id", propertyId);
+  }
+  if (featured) {
+    query = query.eq("featured", true);
   }
 
   const { data, error } = await query;

@@ -1,0 +1,278 @@
+/* Admin: slice DLS 2.0 anatomy (pill buttons, 16px cards on an ambient shadow, underlined inputs,
+   trailing green switches, pill filters, subtle status tags) dressed in the public site's palette
+   and type (src/app/experiment/experiment.css). Scoped to .adm so the public site is untouched.
+   Everything sits in the `components` layer, so a Tailwind utility on the same element still wins. */
+
+@layer components {
+  .adm {
+    /* colour: the public site's palette in DLS roles */
+    --paper: oklch(98.7% 0.005 85);          /* page */
+    --card: oklch(99.9% 0.002 85);           /* cards, sheets, sidebar */
+    --tint: oklch(30% 0.05 228 / 0.07);      /* subtle fill: selected pill, hover, grey button */
+    --tint-2: oklch(30% 0.05 228 / 0.035);   /* row hover */
+    --ink: oklch(30% 0.05 228);              /* text primary: petrol ink */
+    --ink-2: oklch(30% 0.05 228 / 0.74);     /* text secondary */
+    --ink-3: oklch(30% 0.05 228 / 0.54);     /* text tertiary, placeholders */
+    --rule: oklch(30% 0.05 228 / 0.09);      /* hairlines between rows */
+    --line: oklch(30% 0.05 228 / 0.22);      /* input underline, outlined button */
+    --red: oklch(50% 0.19 25);               /* brand: the one action, focus, selection */
+    --red-tint: oklch(50% 0.19 25 / 0.09);
+    /* status: DLS tag intents, one step darker so 12px text stays readable on the tint */
+    --pos: oklch(48% 0.13 150);   --pos-tint: oklch(94.5% 0.04 150);  --pos-on: oklch(62% 0.17 150);
+    --warn: oklch(50% 0.11 65);   --warn-tint: oklch(95.5% 0.045 80);
+    --neg: oklch(48% 0.19 25);    --neg-tint: oklch(95% 0.03 25);
+    --info: oklch(46% 0.12 255);  --info-tint: oklch(95% 0.025 255);
+    /* floor: table states as pastel top / chair / ink (live floor + editor) */
+    --t-free: oklch(92.5% 0.055 158);  --t-free-2: oklch(94.3% 0.045 158);  --t-free-ink: oklch(38% 0.08 158);
+    --t-booked: oklch(92% 0.022 250);  --t-booked-2: oklch(94.3% 0.018 250); --t-booked-ink: oklch(38% 0.05 250);
+    --t-arrived: oklch(93.5% 0.06 92); --t-arrived-2: oklch(95% 0.05 92);  --t-arrived-ink: oklch(42% 0.08 75);
+    --t-seated: oklch(89.5% 0.055 42); --t-seated-2: oklch(92.5% 0.045 42);  --t-seated-ink: oklch(42% 0.12 35);
+    --t-idle: oklch(93% 0.012 80);     --t-idle-2: oklch(94.8% 0.011 80);  --t-idle-ink: var(--ink);
+    --t-off: transparent;              --t-off-2: transparent;             --t-off-ink: var(--ink-3);
+    /* elevation (DLS Card / Below), warmed */
+    --shadow-card: 0 2px 32px oklch(20% 0.03 55 / 0.07);
+    --shadow-below: 0 6px 8px oklch(20% 0.03 55 / 0.05);
+    --shadow-pop: 0 24px 60px -24px oklch(15% 0.02 55 / 0.45);
+    --shadow-above: 0 -6px 8px oklch(20% 0.03 55 / 0.05);  /* DLS Above: fixed bottom bars */
+    --shadow-card-hover: 0 6px 36px oklch(20% 0.03 55 / 0.1);
+    --floor-wall: oklch(30% 0.05 228 / 0.5);
+    --floor-dot: oklch(30% 0.05 228 / 0.14);
+    /* type: Young Serif for page titles, Schibsted Grotesk for everything you read or tap */
+    --serif: var(--adm-serif), Georgia, serif;
+    --sans: var(--adm-sans), system-ui, sans-serif;
+    --script: var(--adm-script), cursive;
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+    min-height: 100svh;
+    background: var(--paper);
+    color: var(--ink);
+    font: 400 1rem/1.5 var(--sans);
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .adm button, .adm input, .adm select, .adm textarea { font-family: inherit; color: inherit; }
+  .adm :focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+
+  /* ---------- Type (DLS scale, two weights) ---------- */
+  .adm .t-title { font: 400 1.75rem/1.15 var(--serif); letter-spacing: -0.01em; text-wrap: balance; }
+  .adm .t-h3 { font: 500 1.25rem/1.4 var(--sans); }
+  .adm .t-h4 { font: 500 1rem/1.5 var(--sans); }
+  .adm .t-body { font: 400 1rem/1.5 var(--sans); }
+  .adm .t-sub { font: 400 0.875rem/1.25rem var(--sans); color: var(--ink-3); }
+  .adm .t-cap { font: 400 0.75rem/1rem var(--sans); color: var(--ink-3); }
+  .adm .t-meta { font: 500 0.6875rem/1rem var(--sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+  .adm .t-num { font-variant-numeric: tabular-nums; }
+
+  /* ---------- Page ---------- */
+  .adm .page { max-width: 1120px; margin: 0 auto; padding: 24px 24px 120px; }
+  .adm .page-narrow { max-width: 760px; }
+  .adm .page-wide { max-width: 1400px; }
+  @media (min-width: 768px) { .adm .page { padding: 40px 40px 120px; } }
+  .adm .page-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 32px; }
+  .adm .page-head .t-sub { margin-top: 6px; }
+  .adm .back { display: inline-flex; align-items: center; gap: 6px; height: 32px; margin: 0 0 8px -8px; padding: 0 12px 0 8px; border-radius: 100px; color: var(--ink-2); font: 500 0.875rem/1 var(--sans); text-decoration: none; transition: background-color 0.2s, color 0.2s; }
+  .adm .back:hover { background: var(--tint); color: var(--ink); }
+  .adm .page-head + .pills { margin: -16px 0 24px; } /* section pills sit right under the title */
+  .adm .section { margin-top: 40px; }
+
+  /* ---------- Buttons (DLS: pill, 48 regular / 36 small, press = opacity) ---------- */
+  .adm .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 48px; padding: 0 24px; border-radius: 100px; font: 500 1rem/1.5 var(--sans); letter-spacing: 0.02em; white-space: nowrap; text-decoration: none; cursor: pointer; transition: opacity 0.16s, background-color 0.2s, box-shadow 0.25s, border-color 0.2s; }
+  .adm .btn:active { opacity: 0.7; }
+  .adm .btn:disabled { opacity: 0.5; cursor: default; pointer-events: none; }
+  .adm .btn-sm { height: 36px; padding: 0 16px; font-size: 0.875rem; line-height: 1.25rem; }
+  .adm .btn-block { width: 100%; }
+  /* Primary: the public site's candlelit pill. One per view. */
+  .adm .btn-primary { color: oklch(98% 0.01 82); background: radial-gradient(120% 140% at 50% 120%, oklch(72% 0.15 52) 0%, var(--red) 55%, oklch(45% 0.18 25) 100%); box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.25), 0 10px 24px -14px oklch(50% 0.19 25 / 0.9); }
+  .adm .btn-primary:hover { box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.25), 0 14px 30px -14px oklch(55% 0.19 35 / 0.95); }
+  /* Neutral primary: confirms a destructive step (DLS: never a red-fill destructive button) */
+  .adm .btn-ink { color: var(--paper); background: var(--ink); }
+  .adm .btn-secondary { color: var(--ink); background: transparent; border: 1px solid var(--line); }
+  .adm .btn-secondary:hover { border-color: var(--ink-3); background: var(--card); }
+  .adm .btn-grey { color: var(--ink); background: var(--tint); }
+  .adm .btn-grey:hover { background: oklch(30% 0.05 228 / 0.11); }
+  .adm .btn-tertiary { color: var(--red); background: transparent; padding: 0 12px; }
+  .adm .btn-tertiary:hover { background: var(--red-tint); }
+  .adm .btn-danger { color: var(--neg); background: transparent; padding: 0 12px; }
+  .adm .btn-danger:hover { background: var(--neg-tint); }
+  .adm .btn-icon { width: 48px; padding: 0; }
+  .adm .btn-sm.btn-icon { width: 36px; }
+  .adm .btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .adm .link { color: var(--red); font-weight: 500; text-decoration: none; }
+  .adm .link:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+  /* ---------- Cards (DLS: 16 radius, 24 inside, shadow not border, never grey) ---------- */
+  .adm .card { background: var(--card); border-radius: 16px; box-shadow: var(--shadow-card); padding: 24px; }
+  .adm .card.flush { padding: 0; overflow: hidden; }
+  .adm a.card { transition: box-shadow 0.2s; }
+  .adm a.card:hover { box-shadow: var(--shadow-card-hover); }
+  .adm .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  .adm .card.flush > .card-head { margin: 0; padding: 20px 24px 12px; }
+  .adm .stack { display: grid; gap: 16px; }
+
+  /* ---------- List rows (DLS list item: 16/24, title Body Strong, subtitle 14/20) ---------- */
+  .adm .rows > * + * { border-top: 1px solid var(--rule); }
+  .adm .row { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 14px 24px; text-align: left; width: 100%; color: inherit; text-decoration: none; transition: background-color 0.15s; }
+  .adm a.row:hover, .adm button.row:hover { background: var(--tint-2); }
+  .adm .row-main { min-width: 0; flex: 1; }
+  .adm .row[aria-pressed="true"] { background: var(--tint); box-shadow: inset 3px 0 0 var(--red); }
+  .adm .row-title { display: block; font: 500 1rem/1.5 var(--sans); }
+  .adm .row-sub { display: block; font: 400 0.875rem/1.25rem var(--sans); color: var(--ink-3); }
+  .adm .chev, .adm .btn .chev { width: 7px; height: 11px; flex-shrink: 0; }
+  .adm .row .chev { opacity: 0.5; }
+  /* label above, value below: read-only data is flush rows, not boxes */
+  .adm .kv { display: grid; gap: 2px; }
+  .adm .kv dt { font: 400 0.75rem/1rem var(--sans); color: var(--ink-3); }
+  .adm .kv dd { font: 400 1rem/1.5 var(--sans); }
+
+  /* ---------- Tags (DLS: subtle intents, pill) ---------- */
+  .adm .tag { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 100px; font: 500 0.75rem/1 var(--sans); white-space: nowrap; background: var(--tint); color: var(--ink-2); }
+  .adm .tag-pos { background: var(--pos-tint); color: var(--pos); }
+  .adm .tag-warn { background: var(--warn-tint); color: var(--warn); }
+  .adm .tag-neg { background: var(--neg-tint); color: var(--neg); }
+  .adm .tag-info { background: var(--info-tint); color: var(--info); }
+  .adm .tag-brand { background: var(--red-tint); color: var(--red); }
+
+  /* ---------- Pills (DLS segmented control: no track, selected = subtle fill) ---------- */
+  .adm .pills { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+  .adm .pill { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; height: 36px; padding: 0 16px; border-radius: 100px; font: 500 0.875rem/1.25rem var(--sans); letter-spacing: 0.02em; color: var(--ink-3); text-decoration: none; cursor: pointer; transition: background-color 0.2s, color 0.2s; }
+  .adm .pill:hover { color: var(--ink); }
+  .adm .pill[aria-pressed="true"], .adm .pill[aria-current="page"], .adm .pill[aria-selected="true"] { background: var(--tint); color: var(--ink); }
+  .adm .pill .n { font-weight: 400; color: var(--ink-3); }
+
+  /* ---------- Inputs (DLS: underlined, label above in Caption, focus = 2px brand line) ---------- */
+  .adm .field { display: block; min-width: 0; }
+  .adm .field-label { display: block; font: 400 0.75rem/1rem var(--sans); color: var(--ink-2); }
+  .adm .field-label .req { color: var(--red); }
+  .adm .input { display: block; width: 100%; min-height: 44px; padding: 8px 0; background: transparent; color: var(--ink); border: 0; border-bottom: 1px solid var(--line); border-radius: 0; font: 400 1rem/1.5 var(--sans); transition: border-color 0.2s, box-shadow 0.2s; }
+  .adm .input::placeholder { color: var(--ink-3); opacity: 1; }
+  .adm .input:hover { border-bottom-color: var(--ink-3); }
+  .adm .input:focus { outline: none; border-bottom-color: var(--red); box-shadow: 0 1px 0 0 var(--red); }
+  .adm .input:disabled { color: var(--ink-3); }
+  .adm .input[aria-invalid="true"] { border-bottom-color: var(--neg); box-shadow: 0 1px 0 0 var(--neg); }
+  .adm textarea.input { resize: vertical; min-height: 96px; }
+  .adm select.input { appearance: none; padding-right: 28px; cursor: pointer; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23264653' fill-opacity='.6' fill-rule='evenodd' d='M2.9122 4.93114C2.58481 5.28377 2.58482 5.85547 2.91223 6.20808L7.42564 11.0689C7.75304 11.4215 8.28385 11.4215 8.61124 11.0689L13.0878 6.24762C13.4152 5.89501 13.4152 5.3233 13.0878 4.97068C12.7604 4.61806 12.2296 4.61806 11.9022 4.97067L8.01842 9.15348L4.09783 4.93112C3.77042 4.57851 3.2396 4.57852 2.9122 4.93114Z'/%3E%3C/svg%3E") no-repeat right 4px center / 16px; }
+  .adm .hint { display: block; margin-top: 8px; font: 400 0.75rem/1rem var(--sans); color: var(--ink-3); }
+  .adm .hint.error { color: var(--neg); }
+  .adm .form { display: grid; gap: 24px; }
+  .adm .form-2 { display: grid; gap: 24px; }
+  @media (min-width: 640px) { .adm .form-2 { grid-template-columns: 1fr 1fr; } }
+
+  /* Switch (DLS: 40x24, 16 handle, on = green, sits trailing) */
+  .adm .switch { position: relative; display: inline-block; width: 40px; height: 24px; flex-shrink: 0; border-radius: 100px; background: oklch(83% 0.012 85); transition: background-color 0.2s var(--ease); }
+  .adm .switch::after { content: ""; position: absolute; top: 4px; left: 4px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px oklch(20% 0.03 55 / 0.25); transition: transform 0.2s var(--ease); }
+  .adm [aria-checked="true"] > .switch { background: var(--pos-on); }
+  .adm [aria-checked="true"] > .switch::after { transform: translateX(16px); }
+  .adm .switch-row { display: flex; align-items: center; gap: 16px; width: 100%; min-height: 56px; padding: 12px 0; text-align: left; cursor: pointer; }
+  .adm .switch-row:disabled { opacity: 0.5; cursor: default; }
+
+  /* Stepper: minus / value / plus, for counts like seats and party size */
+  .adm .stepper { display: inline-flex; align-items: center; gap: 4px; }
+  .adm .stepper output { min-width: 40px; text-align: center; font: 500 1.125rem/1 var(--sans); font-variant-numeric: tabular-nums; }
+  .adm .stepper button { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--tint); font: 400 1.25rem/1 var(--sans); transition: opacity 0.16s; }
+  .adm .stepper button:active { opacity: 0.7; }
+  .adm .stepper button:disabled { opacity: 0.35; }
+
+  /* ---------- Table card: a table with chairs, for grid views (see floor.tsx TableCard) ---------- */
+  .adm .tcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); grid-auto-rows: 168px; gap: 8px; }
+  .adm .tcard { position: relative; display: block; border-radius: 22px; text-align: left; transition: background-color 0.2s; }
+  .adm .tcard:hover { background: var(--tint-2); }
+  .adm .tcard-top { position: absolute; inset: 17px; display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 12px 14px; border-radius: 18px; background: var(--top); color: var(--ink); transition: box-shadow 0.2s; }
+  .adm .tcard-top.round { border-radius: 50%; align-items: center; justify-content: center; text-align: center; padding: 12px; }
+  .adm .tcard[aria-pressed="true"] .tcard-top { box-shadow: 0 0 0 3px var(--card), 0 0 0 5.5px var(--red); }
+  .adm .tcard-top b { font: 500 1rem/1.4 var(--sans); }
+  .adm .tcard-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; font: 400 0.8125rem/1.2rem var(--sans); }
+  .adm .tcard-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: auto; }
+  .adm .tcard-top.round .tcard-chips { margin-top: 4px; justify-content: center; }
+  .adm .tcard-chips span { padding: 0 8px; border-radius: 100px; background: oklch(100% 0 0 / 0.62); font: 500 0.75rem/1.375rem var(--sans); white-space: nowrap; }
+  .adm .tcard-chairs { position: absolute; display: flex; justify-content: space-evenly; pointer-events: none; }
+  .adm .tcard-chairs i { flex: 0 1 40px; border-radius: 100px; background: var(--chair); }
+  .adm .tcard-chairs.s0, .adm .tcard-chairs.s2 { left: 28px; right: 28px; height: 10px; }
+  .adm .tcard-chairs.s1, .adm .tcard-chairs.s3 { top: 28px; bottom: 28px; width: 10px; flex-direction: column; }
+  .adm .tcard-chairs.s0 { top: 3px; }    .adm .tcard-chairs.s2 { bottom: 3px; }
+  .adm .tcard-chairs.s1 { right: 3px; }  .adm .tcard-chairs.s3 { left: 3px; }
+  .adm .tcard-chairs.s1 i, .adm .tcard-chairs.s3 i { flex-basis: 40px; }
+  .adm .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 4px; background: var(--top); }
+
+  /* ---------- Picker tile: choose one or more small things (tables in the walk-in sheet) ---------- */
+  .adm .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .adm .tile { min-height: 56px; padding: 8px 12px; border-radius: 12px; text-align: left; background: var(--tint-2); box-shadow: inset 0 0 0 1px var(--rule); transition: background-color 0.15s, box-shadow 0.15s; }
+  .adm .tile[aria-pressed="true"] { background: var(--red-tint); box-shadow: inset 0 0 0 2px var(--red); }
+  .adm .tile:disabled { opacity: 0.35; cursor: default; }
+
+  /* ---------- Floor canvas frame and fixed bottom bars ---------- */
+  .adm .frame { overflow: hidden; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--rule); }
+  .adm .bottom-bar { position: fixed; inset: auto 0 0; z-index: 30; padding: 16px 24px calc(16px + env(safe-area-inset-bottom)); background: var(--card); box-shadow: var(--shadow-above); }
+  .adm .bottom-bar.sticky { position: sticky; inset: auto auto 0; margin: 32px -24px 0; background: var(--paper); }
+  @media (min-width: 768px) { .adm .bottom-bar.sticky { margin-inline: -40px; padding-inline: 40px; } }
+  .adm:has(.bottom-bar) .snackbar { bottom: calc(96px + env(safe-area-inset-bottom)); } /* never cover the bar's button */
+
+  /* ---------- Data table (no DLS table: rows read like DLS list items) ---------- */
+  .adm .table-wrap { overflow-x: auto; }
+  .adm .table { width: 100%; border-collapse: collapse; font-size: 0.9375rem; }
+  .adm .table th { padding: 14px 16px 10px; text-align: left; font: 400 0.75rem/1rem var(--sans); color: var(--ink-3); white-space: nowrap; border-bottom: 1px solid var(--rule); }
+  .adm .table td { padding: 16px; color: var(--ink-2); vertical-align: middle; border-top: 1px solid var(--rule); }
+  .adm .table tbody tr:first-child td { border-top: 0; }
+  .adm .table th:first-child, .adm .table td:first-child { padding-left: 24px; }
+  .adm .table th:last-child, .adm .table td:last-child { padding-right: 24px; }
+  .adm .table tbody tr { transition: background-color 0.15s; }
+  .adm .table tbody tr:hover { background: var(--tint-2); }
+  .adm .table .strong { color: var(--ink); font-weight: 500; }
+
+  /* ---------- Empty / loading ---------- */
+  .adm .empty { display: grid; justify-items: center; gap: 8px; padding: 56px 24px; text-align: center; }
+  .adm .empty .t-h4 { max-width: 32ch; }
+  .adm .empty .t-sub { max-width: 44ch; }
+  .adm .empty .btn { margin-top: 12px; }
+  .adm .spinner { width: 24px; height: 24px; border-radius: 50%; border: 2.5px solid var(--red-tint); border-top-color: var(--red); animation: adm-spin 0.8s linear infinite; }
+  .adm .loading { display: grid; place-items: center; min-height: 240px; }
+
+  /* ---------- Snackbar (DLS: bottom, dark, status dot; failures carry an action) ---------- */
+  .adm .snackbar { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); z-index: 90; display: flex; align-items: center; gap: 12px; width: max-content; max-width: min(460px, calc(100vw - 32px)); padding: 12px 8px 12px 16px; border-radius: 12px; background: var(--ink); color: var(--paper); font: 400 0.875rem/1.25rem var(--sans); box-shadow: var(--shadow-pop); translate: -50% 0; animation: adm-up 0.28s var(--ease) both; }
+  .adm .snackbar .dot { width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: var(--pos-on); }
+  .adm .snackbar.is-error .dot { background: oklch(68% 0.18 25); }
+  .adm .snackbar p { flex: 1; padding-right: 8px; }
+  .adm .snackbar button { flex-shrink: 0; height: 32px; padding: 0 12px; border-radius: 100px; font-weight: 500; color: oklch(84% 0.09 45); }
+  .adm .snackbar button:hover { background: oklch(100% 0 0 / 0.08); }
+
+  /* ---------- Sheet / dialog (DLS: bottom sheet on phones, centred on desktop, scrim dismisses) ---------- */
+  .adm .scrim { position: fixed; inset: 0; z-index: 80; display: flex; align-items: flex-end; justify-content: center; background: oklch(15% 0.02 55 / 0.35); animation: adm-fade 0.2s both; }
+  @media (min-width: 640px) { .adm .scrim { align-items: center; padding: 24px; } }
+  .adm .sheet { position: relative; width: 100%; max-width: 480px; max-height: 92dvh; overflow-y: auto; padding: 24px; background: var(--card); border-radius: 16px 16px 0 0; box-shadow: var(--shadow-pop); animation: adm-up 0.28s var(--ease) both; }
+  @media (min-width: 640px) { .adm .sheet { border-radius: 24px; } }
+  .adm .sheet-close { position: absolute; top: 16px; right: 16px; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; transition: background-color 0.2s; }
+  .adm .sheet-close:hover { background: var(--tint); }
+  .adm .sheet-close svg { width: 12px; height: 12px; }
+
+  /* ---------- Shell: sidebar on desktop, top bar + drawer on phones ---------- */
+  .adm-shell { display: flex; min-height: 100svh; }
+  .adm .side { position: sticky; top: 0; display: none; flex-direction: column; width: 248px; height: 100svh; flex-shrink: 0; background: var(--card); box-shadow: var(--shadow-card); }
+  @media (min-width: 900px) { .adm .side { display: flex; } }
+  .adm .wordmark { display: block; padding: 28px 24px 4px; color: var(--red); font: 400 1.75rem/1.1 var(--script); text-decoration: none; white-space: nowrap; }
+  .adm .wordmark + p { padding: 0 24px 16px; }
+  .adm .nav { flex: 1; overflow-y: auto; padding: 0 12px 24px; }
+  .adm .nav-group { margin-top: 20px; }
+  .adm .nav-group > p { padding: 0 12px 6px; }
+  .adm .nav a { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 40px; padding: 0 12px; border-radius: 100px; color: var(--ink-2); font: 400 0.9375rem/1 var(--sans); text-decoration: none; transition: background-color 0.15s, color 0.15s; }
+  .adm .nav a:hover { background: var(--tint-2); color: var(--ink); }
+  .adm .nav a[aria-current="page"] { background: var(--tint); color: var(--ink); font-weight: 500; }
+  .adm .side-foot { padding: 16px 24px 24px; border-top: 1px solid var(--rule); }
+  .adm .topbar { position: sticky; top: 0; z-index: 40; display: flex; align-items: center; gap: 4px; height: 56px; padding: 0 8px 0 16px; background: var(--paper); box-shadow: var(--shadow-below); }
+  @media (min-width: 900px) { .adm .topbar { display: none; } }
+  .adm .topbar .wordmark { padding: 0; font-size: 1.375rem; }
+  .adm .burger { display: grid; place-content: center; gap: 5px; width: 48px; height: 48px; margin-left: auto; border-radius: 50%; }
+  .adm .burger i { display: block; width: 20px; height: 1.5px; border-radius: 2px; background: var(--ink); }
+  .adm .drawer { position: fixed; inset: 0 auto 0 0; z-index: 81; display: flex; flex-direction: column; width: min(300px, 86vw); background: var(--card); box-shadow: var(--shadow-pop); animation: adm-in 0.28s var(--ease) both; }
+  .adm .drawer .sheet-close { top: 20px; right: 12px; }
+  .adm-main { flex: 1; min-width: 0; }
+
+  @keyframes adm-spin { to { transform: rotate(360deg); } }
+  @keyframes adm-fade { from { opacity: 0; } }
+  @keyframes adm-up { from { opacity: 0; transform: translateY(16px); } }
+  @keyframes adm-in { from { transform: translateX(-100%); } }
+  @media (prefers-reduced-motion: reduce) {
+    .adm *, .adm *::before, .adm *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+}
+
+/* The root layout paints the body navy for the public site; the admin is warm paper. */
+body:has(.adm) { background: oklch(98.7% 0.005 85); color: oklch(30% 0.05 228); }

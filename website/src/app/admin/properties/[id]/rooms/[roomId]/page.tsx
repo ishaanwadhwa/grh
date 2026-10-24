@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
-import { createBrowserClient } from "@supabase/ssr";
+import { createClient } from "@/lib/supabase/client";
 import { FormField, AdminInput, AdminTextarea, AdminSelect } from "@/components/admin/FormField";
 import ImageUploader from "@/components/admin/ImageUploader";
+import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import { Empty, fmtMoney, Loading, PageHeader, Stepper, SwitchRow, slugify, useNotice } from "@/components/admin/ui";
 
 interface RoomForm {
   name: string;
@@ -37,35 +38,34 @@ export default function AdminRoomEditPage() {
   const [propertyName, setPropertyName] = useState("");
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const { say, fail, snackbar } = useNotice();
+  const [missing, setMissing] = useState(false); // a failed load must never become a blank form you can save over
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = createClient();
 
   useEffect(() => {
-    async function load() {
-      const { data: prop } = await supabase.from("properties").select("name").eq("id", propertyId).single();
-      if (prop) setPropertyName(prop.name);
-
-      if (!isNew) {
-        const { data } = await supabase.from("rooms").select("*").eq("id", roomId).single();
-        if (data) {
-          setForm({
-            name: data.name, slug: data.slug, description: data.description,
-            personality: data.personality, capacity: data.capacity, bed_type: data.bed_type,
-            size: data.size, amenities: (data.amenities || []).join(", "),
-            images: data.images || [], base_price_per_night: data.base_price_per_night,
-            is_active: data.is_active, sort_order: data.sort_order,
-          });
-        }
-        setLoading(false);
+    Promise.all([
+      supabase.from("properties").select("name").eq("id", propertyId).single(),
+      isNew ? null : supabase.from("rooms").select("*").eq("id", roomId).single(),
+    ]).then(([prop, room]) => {
+      if (prop.data) setPropertyName(prop.data.name);
+      const data = room?.data;
+      if (data) {
+        setForm({
+          name: data.name, slug: data.slug, description: data.description,
+          personality: data.personality, capacity: data.capacity, bed_type: data.bed_type,
+          size: data.size, amenities: (data.amenities || []).join(", "),
+          images: data.images || [], base_price_per_night: data.base_price_per_night,
+          is_active: data.is_active, sort_order: data.sort_order,
+        });
+      } else if (room) {
+        setMissing(true);
+        if (room.error) fail(room.error);
       }
-    }
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [propertyId, roomId]);
+      setLoading(false);
+    });
+  }, [supabase, propertyId, roomId, isNew, fail]);
 
   const set = (field: keyof RoomForm, value: string | string[] | number | boolean) =>
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -90,102 +90,131 @@ export default function AdminRoomEditPage() {
 
     if (isNew) {
       const { data, error } = await supabase.from("rooms").insert(payload).select().single();
-      if (!error && data) {
-        router.replace(`/admin/properties/${propertyId}/rooms/${data.id}`);
-      }
+      if (error) fail(error);
+      else router.replace(`/admin/properties/${propertyId}/rooms/${data.id}`);
     } else {
-      await supabase.from("rooms").update(payload).eq("id", roomId);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      const { error } = await supabase.from("rooms").update(payload).eq("id", roomId);
+      if (error) fail(error);
+      else say("Changes saved");
     }
     setSaving(false);
   };
 
-  if (loading) return <div className="p-8 text-sm text-text/30">Loading...</div>;
+  // A room with bookings can't be deleted (bookings.room_id has no ON DELETE).
+  const handleDelete = async () => {
+    setConfirmDelete(false);
+    const { error } = await supabase.from("rooms").delete().eq("id", roomId);
+    if (error) fail(error);
+    else router.replace(`/admin/properties/${propertyId}/rooms`);
+  };
+
+  if (loading) return <Loading />;
+  if (missing) return <div className="page"><Empty title="Couldn't load this room" sub="Nothing was changed. Check your connection and refresh." />{snackbar}</div>;
+
 
   return (
-    <div className="p-8 max-w-2xl">
-      <div className="flex items-center gap-2 mb-8 text-xs text-text/40">
-        <Link href={`/admin/properties/${propertyId}/rooms`} className="hover:text-text">← {propertyName} / Rooms</Link>
-        <span className="text-text/20">/</span>
-        <h1 className="font-display text-2xl text-text">{isNew ? "New Room" : form.name}</h1>
-      </div>
+    <div className="page page-narrow">
+      <PageHeader
+        back={{ href: `/admin/properties/${propertyId}/rooms`, label: "Rooms" }}
+        title={isNew ? "New room" : form.name || "Room"}
+        sub={propertyName || undefined}
+      />
 
-      <div className="space-y-6">
-        <div className="grid grid-cols-2 gap-4">
-          <FormField label="Name" required>
-            <AdminInput value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="The Jharokha Suite" />
-          </FormField>
-          <FormField label="Slug" required>
-            <AdminInput value={form.slug} onChange={(e) => set("slug", e.target.value.toLowerCase().replace(/\s+/g, "-"))} placeholder="jharokha-suite" />
-          </FormField>
-        </div>
+      <div className="stack">
+        <section className="card">
+          <h2 className="t-h4 mb-6">Basics</h2>
+          <div className="form">
+            <div className="form-2">
+              <FormField label="Name" required>
+                <AdminInput value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="The Jharokha Suite" />
+              </FormField>
+              <FormField label="Web address" required hint="Lowercase, used in the link">
+                <AdminInput value={form.slug} onChange={(e) => set("slug", slugify(e.target.value))} placeholder="jharokha-suite" />
+              </FormField>
+            </div>
+            <div className="form-2">
+              <FormField label="Bed type">
+                <AdminSelect value={form.bed_type} onChange={(e) => set("bed_type", e.target.value)}>
+                  {["King", "Queen", "Twin", "Double"].map((b) => <option key={b}>{b}</option>)}
+                </AdminSelect>
+              </FormField>
+              <FormField label="Size" hint="e.g. 45 sqm">
+                <AdminInput value={form.size} onChange={(e) => set("size", e.target.value)} placeholder="45 sqm" />
+              </FormField>
+            </div>
+            <FormField group label="Sleeps">
+              <Stepper label="Guests" value={form.capacity} min={1} max={10} onChange={(n) => set("capacity", n)} />
+            </FormField>
+          </div>
+        </section>
 
-        <FormField label="Description" required>
-          <AdminTextarea value={form.description} onChange={(e) => set("description", e.target.value)} rows={3} placeholder="Physical description of the room..." />
-        </FormField>
+        <section className="card">
+          <h2 className="t-h4 mb-6">Personality</h2>
+          <div className="form">
+            <FormField label="Description" required>
+              <AdminTextarea value={form.description} onChange={(e) => set("description", e.target.value)} rows={3} placeholder="Physical description of the room..." />
+            </FormField>
+            <FormField label="Personality" hint="Its story and character, shown to guests">
+              <AdminTextarea value={form.personality} onChange={(e) => set("personality", e.target.value)} rows={3} placeholder="For the one who..." />
+            </FormField>
+          </div>
+        </section>
 
-        <FormField label="Personality" hint="The story/character — shown to guests">
-          <AdminTextarea value={form.personality} onChange={(e) => set("personality", e.target.value)} rows={3} placeholder="For the one who..." />
-        </FormField>
-
-        <div className="grid grid-cols-3 gap-4">
-          <FormField label="Bed Type">
-            <AdminSelect value={form.bed_type} onChange={(e) => set("bed_type", e.target.value)}>
-              {["King", "Queen", "Twin", "Double"].map((b) => <option key={b}>{b}</option>)}
-            </AdminSelect>
-          </FormField>
-          <FormField label="Capacity">
-            <AdminInput type="number" min={1} max={10} value={form.capacity} onChange={(e) => set("capacity", parseInt(e.target.value))} />
-          </FormField>
-          <FormField label="Size" hint="e.g. 45 sqm">
-            <AdminInput value={form.size} onChange={(e) => set("size", e.target.value)} placeholder="45 sqm" />
-          </FormField>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <FormField label="Base Price / Night (₹)" required>
-            <AdminInput type="number" min={0} value={form.base_price_per_night} onChange={(e) => set("base_price_per_night", parseInt(e.target.value))} placeholder="10000" />
-          </FormField>
-          <FormField label="Sort Order" hint="Lower = first">
-            <AdminInput type="number" min={0} value={form.sort_order} onChange={(e) => set("sort_order", parseInt(e.target.value))} />
-          </FormField>
-        </div>
-
-        <FormField label="Amenities" hint="Comma-separated list">
-          <AdminInput value={form.amenities} onChange={(e) => set("amenities", e.target.value)} placeholder="King Bed, Rain Shower, Smart TV, ..." />
-        </FormField>
-
-        <FormField label="Images">
+        <section className="card">
+          <h2 className="t-h4 mb-6">Photos</h2>
           <ImageUploader
             bucket="room-images"
             folder={form.slug || "room"}
             images={form.images}
             onImagesChange={(imgs) => set("images", imgs)}
           />
-        </FormField>
+        </section>
 
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <div
-              onClick={() => set("is_active", !form.is_active)}
-              className={`w-4 h-4 border flex items-center justify-center transition-all ${form.is_active ? "border-accent-gold bg-accent-gold" : "border-border-subtle"}`}
-            >
-              {form.is_active && <span className="text-white text-[10px]">✓</span>}
-            </div>
-            <span className="text-xs text-text/60">Active (visible on website)</span>
-          </label>
-        </div>
+        <section className="card">
+          <h2 className="t-h4 mb-6">Amenities</h2>
+          <FormField label="What guests get" hint="Separate with commas">
+            <AdminInput value={form.amenities} onChange={(e) => set("amenities", e.target.value)} placeholder="King Bed, Rain Shower, Smart TV, ..." />
+          </FormField>
+        </section>
 
-        <div className="flex items-center gap-4 pt-2">
-          <button onClick={handleSave} disabled={saving}
-            className="px-6 py-2.5 bg-text text-text-inverse text-xs uppercase tracking-widest hover:bg-text/80 transition-colors disabled:opacity-40"
-          >
-            {saving ? "Saving..." : isNew ? "Create Room" : "Save Changes"}
-          </button>
-          {saved && <span className="text-xs text-green-600">Saved!</span>}
-        </div>
+        <section className="card">
+          <h2 className="t-h4 mb-6">Price</h2>
+          <FormField label="Base price a night" required hint={`${fmtMoney(form.base_price_per_night)} a night`}>
+            <span className="relative block">
+              <span className="text-(--ink-3) absolute top-1/2 left-0 -translate-y-1/2" aria-hidden="true">₹</span>
+              <AdminInput className="pl-5" type="number" inputMode="numeric" min={0} value={form.base_price_per_night} onChange={(e) => set("base_price_per_night", parseInt(e.target.value))} placeholder="10000" />
+            </span>
+          </FormField>
+        </section>
+
+        <section className="card">
+          <h2 className="t-h4">Visibility</h2>
+          <SwitchRow label="Live on the website" sub="Off hides this room from guests" checked={form.is_active} onChange={(v) => set("is_active", v)} />
+          <div className="mt-4">
+            <FormField label="Order" hint="Lower numbers show first">
+              <AdminInput type="number" inputMode="numeric" min={0} value={form.sort_order} onChange={(e) => set("sort_order", parseInt(e.target.value))} />
+            </FormField>
+          </div>
+        </section>
       </div>
+
+      <div className="mt-8 flex items-center justify-between gap-4">
+        <button type="button" onClick={handleSave} disabled={saving} className="btn btn-primary">
+          {saving ? "Saving…" : isNew ? "Create room" : "Save changes"}
+        </button>
+        {!isNew && (
+          <button type="button" onClick={() => setConfirmDelete(true)} className="btn btn-danger btn-sm">Delete room</button>
+        )}
+      </div>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete this room?"
+        message={`"${form.name}" will be removed from the website. This can't be undone.`}
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDelete(false)}
+      />
+      {snackbar}
     </div>
   );
 }

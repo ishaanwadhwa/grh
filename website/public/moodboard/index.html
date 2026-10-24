@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Angel Moodboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..800;1,6..96,400..800&family=Schibsted+Grotesk:wght@400..900&family=Pinyon+Script&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Sampled from the room, then tuned for screens */
+  --candlelight: oklch(15% 0.02 55);   /* the room after the candles: warm black, never navy */
+  --candlelight-2: oklch(21% 0.025 50);
+  --linen: oklch(95.5% 0.016 82);      /* ruffled curtains, the tablecloth */
+  --linen-2: oklch(90% 0.022 80);
+  --chintz: oklch(33% 0.055 228);      /* the petrol ink on the floral plates */
+  --kiss: oklch(58% 0.22 23);          /* the Instagram red: DM for reservations */
+  --ember: oklch(80% 0.11 50);         /* candle and oven glow */
+  --brick: oklch(46% 0.085 45);
+
+  --serif: "Bodoni Moda", "Didot", serif;
+  --sans: "Schibsted Grotesk", system-ui, sans-serif;
+  --script: "Pinyon Script", cursive;
+  --gutter: clamp(16px, 4vw, 48px);
+}
+* { box-sizing: border-box; margin: 0; }
+html { -webkit-text-size-adjust: 100%; }
+body { background: var(--candlelight); color: var(--linen); font: 400 16px/1.6 var(--sans); }
+img { display: block; width: 100%; height: 100%; object-fit: cover; }
+section { padding: clamp(64px, 12vw, 160px) var(--gutter); }
+.wrap { max-width: 1240px; margin: 0 auto; }
+.kicker { font: 700 12px/1 var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--ember); }
+h2 { font: italic 400 clamp(40px, 7vw, 88px)/1.02 var(--serif); letter-spacing: -.02em; margin: 14px 0 28px; }
+p.lede { max-width: 58ch; color: color-mix(in oklch, var(--linen) 78%, transparent); font-size: 18px; line-height: 1.7; }
+
+/* Cover */
+.cover { min-height: 100svh; display: grid; align-content: end; position: relative; overflow: hidden; padding: 0 var(--gutter) clamp(48px, 8vw, 96px); }
+.cover::before { content: ""; position: absolute; inset: 0; background: url(/images/angel/ig2.jpg) center 40%/cover; opacity: .55; }
+.cover::after { content: ""; position: absolute; inset: 0; background: radial-gradient(120% 70% at 30% 100%, var(--candlelight) 30%, transparent 75%); }
+.cover > * { position: relative; z-index: 1; }
+.wordmark { font: 400 clamp(56px, 13vw, 168px)/.95 var(--script); color: var(--linen); }
+.thesis { font: italic 400 clamp(24px, 3.6vw, 44px)/1.2 var(--serif); max-width: 22ch; margin-top: 28px; }
+.shout { font: 900 clamp(28px, 5.4vw, 68px)/.95 var(--sans); text-transform: uppercase; color: var(--kiss); letter-spacing: -.01em; margin-top: 28px; max-width: 14ch; }
+.meta { margin-top: 36px; font-size: 13px; color: color-mix(in oklch, var(--linen) 60%, transparent); }
+
+/* Photo wall */
+.wall { display: grid; grid-template-columns: repeat(12, 1fr); gap: 10px; margin-top: 48px; }
+.wall figure { position: relative; overflow: hidden; border-radius: 2px; }
+.wall figcaption { position: absolute; left: 12px; right: 12px; bottom: 10px; font: italic 400 15px/1.3 var(--serif); color: var(--linen); text-shadow: 0 1px 12px oklch(10% 0.02 55 / .9); }
+.w-a { grid-column: span 7; aspect-ratio: 4/5; } .w-b { grid-column: span 5; aspect-ratio: 4/5; }
+.w-c { grid-column: span 4; aspect-ratio: 3/4; } .w-d { grid-column: span 4; aspect-ratio: 3/4; } .w-e { grid-column: span 4; aspect-ratio: 3/4; }
+.w-f { grid-column: span 5; aspect-ratio: 1; } .w-g { grid-column: span 7; aspect-ratio: 7/5; }
+@media (max-width: 720px) { .wall { grid-template-columns: repeat(2, 1fr); } .wall figure { grid-column: span 1 !important; aspect-ratio: 3/4 !important; } .wall .w-a, .wall .w-g { grid-column: span 2 !important; aspect-ratio: 4/5 !important; } }
+
+/* Palette */
+.palette { display: grid; grid-template-columns: 2.2fr 1.6fr 1fr 1fr .5fr; gap: 0; margin-top: 48px; min-height: 360px; }
+.sw { padding: 20px; display: flex; flex-direction: column; justify-content: space-between; min-height: 180px; }
+.sw b { font: italic 500 26px/1 var(--serif); display: block; }
+.sw span { font-size: 12px; line-height: 1.5; display: block; margin-top: 8px; opacity: .8; }
+.sw code { font: 500 11px/1 var(--sans); opacity: .7; }
+@media (max-width: 720px) { .palette { grid-template-columns: 1fr 1fr; } .sw:first-child { grid-column: span 2; } }
+
+/* Type */
+.type { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(32px, 6vw, 80px); margin-top: 48px; }
+.type .label { font-size: 13px; color: var(--ember); margin-bottom: 14px; }
+.spec-serif { font: italic 400 clamp(44px, 6vw, 80px)/1.02 var(--serif); letter-spacing: -.02em; }
+.spec-shout { font: 900 clamp(34px, 5vw, 64px)/.92 var(--sans); text-transform: uppercase; color: var(--kiss); letter-spacing: -.01em; }
+.spec-ui { font: 500 17px/1.5 var(--sans); color: color-mix(in oklch, var(--linen) 85%, transparent); max-width: 40ch; }
+.type p.note { margin-top: 14px; font-size: 14px; color: color-mix(in oklch, var(--linen) 62%, transparent); max-width: 44ch; }
+@media (max-width: 720px) { .type { grid-template-columns: 1fr; } }
+
+/* Linen section: the tablecloth is laid */
+.linen { background: var(--linen); color: var(--chintz); }
+.linen .kicker { color: var(--brick); }
+.linen p.lede { color: color-mix(in oklch, var(--chintz) 80%, transparent); }
+.ruffle { height: 12px; background: radial-gradient(circle 11px at 11px 12px, var(--linen) 10.5px, transparent 11px) 0 0/22px 12px repeat-x; margin-bottom: -1px; }
+.gingham {
+  background-color: var(--linen);
+  background-image:
+    repeating-linear-gradient(0deg, color-mix(in oklch, var(--chintz) 16%, transparent) 0 14px, transparent 14px 28px),
+    repeating-linear-gradient(90deg, color-mix(in oklch, var(--chintz) 16%, transparent) 0 14px, transparent 14px 28px);
+}
+.motifs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 48px; }
+.motif { aspect-ratio: 1; border-radius: 2px; overflow: hidden; position: relative; }
+.motif em { position: absolute; left: 14px; bottom: 12px; font: italic 500 18px/1 var(--serif); }
+.glow { background: radial-gradient(40% 40% at 50% 55%, var(--ember), color-mix(in oklch, var(--ember) 30%, var(--candlelight)) 45%, var(--candlelight) 75%); animation: flicker 4.5s ease-in-out infinite; }
+.glow em { color: var(--linen); }
+@keyframes flicker { 0%,100% { filter: brightness(1); } 45% { filter: brightness(1.08); } 60% { filter: brightness(.96); } }
+@media (prefers-reduced-motion: reduce) { .glow { animation: none; } }
+.ruffle-demo { background: var(--candlelight); display: grid; align-items: end; }
+.ruffle-demo div { background: var(--linen); height: 55%; position: relative; }
+.ruffle-demo div::before { content: ""; position: absolute; left: 0; right: 0; top: -11px; height: 12px; background: radial-gradient(circle 11px at 11px 12px, var(--linen) 10.5px, transparent 11px) 0 0/22px 12px repeat-x; }
+@media (max-width: 720px) { .motifs { grid-template-columns: 1fr 1fr; } }
+
+/* Voice */
+.voice { margin-top: 48px; display: grid; gap: 0; }
+.line { display: grid; grid-template-columns: 1fr 1.2fr; gap: 24px; padding: 22px 0; border-top: 1px solid color-mix(in oklch, var(--chintz) 18%, transparent); align-items: baseline; }
+.line .where { font: 600 13px/1.4 var(--sans); color: var(--brick); }
+.line .say { font: italic 400 clamp(22px, 2.6vw, 30px)/1.25 var(--serif); }
+.line .say.loud { font: 900 clamp(20px, 2.4vw, 28px)/1.05 var(--sans); font-style: normal; text-transform: uppercase; color: var(--kiss); }
+@media (max-width: 720px) { .line { grid-template-columns: 1fr; gap: 6px; } }
+
+/* Decisions */
+.decisions { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(32px, 6vw, 96px); margin-top: 48px; align-items: start; }
+.decisions ol { padding-left: 1.2em; display: grid; gap: 18px; }
+.decisions li { padding-left: 6px; }
+.decisions li b { display: block; font: italic 500 22px/1.2 var(--serif); margin-bottom: 4px; }
+.decisions li span { color: color-mix(in oklch, var(--chintz) 78%, transparent); font-size: 15px; }
+@media (max-width: 860px) { .decisions { grid-template-columns: 1fr; } }
+
+/* Phone sketches */
+.phones { display: flex; gap: 20px; flex-wrap: wrap; }
+.phone { width: 230px; aspect-ratio: 9/19; border-radius: 30px; background: var(--candlelight); padding: 10px; box-shadow: 0 30px 60px -30px oklch(20% 0.03 55 / .5); flex: none; }
+.screen { height: 100%; border-radius: 22px; overflow: hidden; display: flex; flex-direction: column; position: relative; background: var(--candlelight); color: var(--linen); font-size: 10px; }
+.bar { display: flex; justify-content: space-between; align-items: center; padding: 14px 14px 8px; }
+.bar .wm { font: 400 18px/1 var(--script); }
+.pill { border: 1px solid color-mix(in oklch, var(--linen) 30%, transparent); border-radius: 99px; padding: 4px 8px; font-weight: 600; }
+.hero { flex: 1; background: url(/images/angel/ig2.jpg) center 35%/cover; position: relative; display: flex; flex-direction: column; justify-content: end; padding: 14px; }
+.hero::before { content: ""; position: absolute; inset: 0; background: linear-gradient(transparent 30%, var(--candlelight)); }
+.hero > * { position: relative; }
+.hero h4 { font: italic 400 22px/1.05 var(--serif); }
+.hero small { opacity: .75; margin-top: 6px; display: block; }
+.ctas { display: flex; gap: 6px; margin-top: 12px; }
+.btn { border-radius: 99px; padding: 9px 12px; font-weight: 700; text-align: center; flex: 1; }
+.btn.kiss { background: var(--kiss); color: var(--linen); }
+.btn.ghost { border: 1px solid color-mix(in oklch, var(--linen) 40%, transparent); }
+.sheet { background: var(--linen); color: var(--chintz); padding: 14px; position: relative; }
+.sheet::before { content: ""; position: absolute; left: 0; right: 0; top: -5px; height: 6px; background: radial-gradient(circle 5px at 5px 6px, var(--linen) 4.6px, transparent 5px) 0 0/10px 6px repeat-x; }
+.sheet .t { font: italic 500 15px/1.1 var(--serif); margin-bottom: 8px; }
+.chips { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px; }
+.chip { border: 1px solid color-mix(in oklch, var(--chintz) 30%, transparent); border-radius: 99px; padding: 4px 8px; font-weight: 600; }
+.chip.on { background: var(--chintz); color: var(--linen); border-color: var(--chintz); }
+.steps { display: flex; gap: 8px; padding: 10px 14px; font-weight: 700; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; background: var(--linen); color: var(--chintz); }
+.steps i { font-style: normal; opacity: .4; } .steps i.on { opacity: 1; border-bottom: 2px solid var(--kiss); }
+.field { border-bottom: 1px solid color-mix(in oklch, var(--chintz) 25%, transparent); padding: 8px 0 5px; margin-bottom: 6px; }
+.field small { display: block; opacity: .6; font-size: 8px; text-transform: uppercase; letter-spacing: .08em; }
+.ticket { margin: 14px; padding: 14px; border-radius: 4px; color: var(--chintz); text-align: center; }
+.ticket h5 { font: italic 500 28px/1 var(--serif); margin: 6px 0 8px; }
+.cap { font: 600 12px/1.4 var(--sans); color: var(--brick); margin-top: 12px; width: 230px; }
+
+/* Not this */
+.nots { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px 40px; margin-top: 40px; }
+.nots div { border-top: 1px solid color-mix(in oklch, var(--linen) 20%, transparent); padding-top: 14px; }
+.nots b { font: italic 500 22px/1.2 var(--serif); display: block; text-decoration: line-through; text-decoration-color: var(--kiss); text-decoration-thickness: 2px; }
+.nots span { font-size: 15px; color: color-mix(in oklch, var(--linen) 70%, transparent); }
+footer { padding: 48px var(--gutter); font-size: 13px; color: color-mix(in oklch, var(--linen) 55%, transparent); }
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <div class="wrap" style="width:100%">
+    <p class="kicker">Moodboard v1 · GRH experiment</p>
+    <h1 class="wordmark">Angel and the Searchers</h1>
+    <p class="thesis">A romcom set in an old Italian kitchen, inside a Jaipur haveli.</p>
+    <p class="shout">The site has one job: get you a table.</p>
+    <p class="meta">Sources: their Google listing (5.0, 23 reviews), @angelandthesearchers, the printed menu. Every photo here is the real room.</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <p class="kicker">The room</p>
+    <h2>Candlelight does the art direction.</h2>
+    <p class="lede">Haveli arches, exposed brick, ruffled linen at the windows, a gingham tablecloth with a skirt on it, petrol-blue floral plates, one pillar candle per table. Warm, a bit theatrical, a little domestic. Nothing is polished; everything is chosen.</p>
+    <div class="wall">
+      <figure class="w-a"><img src="/images/angel/ig2.jpg" alt="Tables of friends laughing under the haveli arches, the wood-fired oven glowing through a doorway"><figcaption>The room, full. Arches, brick, the oven behind the door.</figcaption></figure>
+      <figure class="w-b"><img src="/images/angel/g1.jpg" alt="Long table laid with a ruffled gingham cloth, one candle, ruffled linen curtain against brick"><figcaption>The tablecloth has a skirt. That's the brand.</figcaption></figure>
+      <figure class="w-c"><img src="/images/angel/ig1.jpg" alt="Spaghetti shared across a candlelit round table"><figcaption>“here's a bite for my garlic girl”</figcaption></figure>
+      <figure class="w-d"><img src="/images/angel/ig6.jpg" alt="A log burning inside the wood-fired oven"><figcaption>500°C. Hotter than your situationship.</figcaption></figure>
+      <figure class="w-e"><img src="/images/angel/g4.jpg" alt="Server in a lace-up blouse carrying a floral bowl and upturned wine glasses"><figcaption>Service with a wardrobe.</figcaption></figure>
+      <figure class="w-f"><img src="/images/angel/g2.jpg" alt="Neapolitan pizzas with leopard-spotted crust on floral plates"><figcaption>Leopard crust, burrata, chintz.</figcaption></figure>
+      <figure class="w-g"><img src="/images/angel/ig4.jpg" alt="Diners under a carved stucco ceiling, shouted red caption over the photo" style="object-position:center 30%"><figcaption>The voice, in red caps, over the real room.</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap">
+    <p class="kicker">Palette · sampled from the photos</p>
+    <h2>Five colours, each with one job.</h2>
+    <p class="lede">Strategy: full palette with strict roles. Candlelight sets the mood, linen carries everything you read and tap, chintz is the ink, kiss red is reserved for booking. No navy, no gold: that was the old site, and every hotel in India.</p>
+    <div class="palette">
+      <div class="sw" style="background:var(--candlelight);outline:1px solid color-mix(in oklch,var(--linen) 12%,transparent)"><div><b>Candlelight</b><span>Atmosphere. Hero, photos, night. ~55% of the screen.<br>From the dark beyond the candle.</span></div><code>oklch(15% .02 55)</code></div>
+      <div class="sw" style="background:var(--linen);color:var(--chintz)"><div><b>Linen</b><span>The tablecloth. Booking sheet, menu, anything you read or fill in. ~30%.</span></div><code>oklch(95.5% .016 82)</code></div>
+      <div class="sw" style="background:var(--chintz)"><div><b>Chintz</b><span>Ink on linen. Text, selected chips, the gingham.<br>From the floral plates.</span></div><code>oklch(33% .055 228)</code></div>
+      <div class="sw" style="background:var(--kiss)"><div><b>Kiss</b><span>Book a table. Only that, and the loud lines.<br>From “DM for reservations”.</span></div><code>oklch(58% .22 23)</code></div>
+      <div class="sw" style="background:var(--ember);color:var(--candlelight)"><div><b>Ember</b><span>Glow. Tiny.</span></div><code>oklch(80% .11 50)</code></div>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap">
+    <p class="kicker">Type</p>
+    <h2>One whispers, one shouts.</h2>
+    <p class="lede">Their Instagram already does this: a romantic serif italic for the soft lines, loud red caps for the jokes. We build the system on that collision instead of inventing a new one.</p>
+    <div class="type">
+      <div>
+        <p class="label">Bodoni Moda Italic · headlines, the romance</p>
+        <p class="spec-serif">A lil Italian romance never hurt anybody.</p>
+        <p class="note">High-contrast Didone, like the captions on their reels. Italic only, large only. Never for UI.</p>
+      </div>
+      <div>
+        <p class="label">Schibsted Grotesk Black · the shout</p>
+        <p class="spec-shout">Stop looking on Hinge. Come flirt.</p>
+        <p class="label" style="margin-top:36px">Schibsted Grotesk · UI and body</p>
+        <p class="spec-ui">Table for 2 · Fri 24 Oct · 8:30 pm. We'll confirm on WhatsApp. Free to cancel until 2 hours before.</p>
+        <p class="note">Sturdy, a bit newspaper, reads well small on a phone at night. Carries every label, chip, field and button.</p>
+      </div>
+    </div>
+    <p class="type note" style="display:block;margin-top:40px;font-size:14px;color:color-mix(in oklch,var(--linen) 62%,transparent)">Wordmark: their calligraphic script from the printed menu. Shown here in Pinyon Script as a stand-in; we need the real logo as SVG.</p>
+  </div>
+</section>
+
+<div class="ruffle" aria-hidden="true"></div>
+<section class="linen">
+  <div class="wrap">
+    <p class="kicker">Motifs</p>
+    <h2>Lay the table, don't decorate the page.</h2>
+    <p class="lede">Four things from the room become the UI's details. Used once each per screen, never as wallpaper.</p>
+    <div class="motifs">
+      <div class="motif gingham"><em>Gingham</em></div>
+      <div class="motif ruffle-demo"><div></div><em style="color:var(--chintz)">Ruffle edge</em></div>
+      <div class="motif glow"><em>Candle glow</em></div>
+      <div class="motif"><img src="/images/angel/g5.jpg" alt="Blush ceramic bowls of baked aubergine carried with upturned glasses" style="object-position:center 60%"><em style="color:var(--linen)">The plates</em></div>
+    </div>
+    <p class="lede" style="margin-top:24px;font-size:15px">Gingham: the confirmation ticket. Ruffle: the top edge of the booking sheet as it slides up over the photo. Candle glow: one slow flicker behind the hero (off for reduced motion). Plates: real photos only, never illustrated.</p>
+  </div>
+</section>
+
+<section class="linen" style="padding-top:0">
+  <div class="wrap">
+    <p class="kicker">Voice</p>
+    <h2>Flirty, dry, never cute for long.</h2>
+    <div class="voice">
+      <div class="line"><span class="where">Menu sections (theirs)</span><span class="say">The First Date · The Talking Stage · The Chemistry · The Serious Bit · Happily Ever After</span></div>
+      <div class="line"><span class="where">Hero (theirs)</span><span class="say">A lil Italian romance never hurt anybody.</span></div>
+      <div class="line"><span class="where">Booking, step titles</span><span class="say">When are we doing this? · Who's coming?</span></div>
+      <div class="line"><span class="where">Confirmation</span><span class="say">It's a date.</span></div>
+      <div class="line"><span class="where">Slot just taken (409)</span><span class="say">Someone swiped right on 8:30 first. Pick another?</span></div>
+      <div class="line"><span class="where">Fully booked night</span><span class="say">Fully booked tonight. The angel says Thursday.</span></div>
+      <div class="line"><span class="where">Social, one per page</span><span class="say loud">Diva, stop looking on Hinge.</span></div>
+      <div class="line"><span class="where">Buttons stay plain</span><span class="say" style="font-style:normal;font-family:var(--sans);font-weight:700;font-size:20px">Book a table · See the menu · Directions · WhatsApp us</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="linen" style="padding-top:0">
+  <div class="wrap">
+    <p class="kicker">Decisions</p>
+    <h2>One page. Booking first.</h2>
+    <div class="decisions">
+      <ol>
+        <li><b>Restaurant-first, phone-first home.</b><span>Angel is the default; a switcher top-right swaps to Goodroom. No “The Houses / Housemakers / Events” menu up front.</span></li>
+        <li><b>Book a table within one thumb-reach.</b><span>Hero has two buttons: Book a table (kiss red) and See the menu. A sticky bottom bar keeps Book a table on screen while you scroll.</span></li>
+        <li><b>Two steps, then done.</b><span>1 When: party, date chips (Tonight, Tomorrow, next 12 days), live time slots, all on one screen. 2 You: name, phone (WhatsApp on), email optional, occasion chips. Then “It's a date.”</span></li>
+        <li><b>No table or area picking in v1.</b><span>Slots don't carry zones, the room is small, and every extra choice costs bookings. Staff seat people from the floor view.</span></li>
+        <li><b>Menu as the relationship stages.</b><span>Swipeable stages with 2 or 3 dishes each and prices; the full menu opens in a linen sheet. It's their best copy, so it gets real estate.</span></li>
+        <li><b>Social as proof, not decoration.</b><span>Six real posts, the handle, and the 5.0 rating. Then: address in Chelon ki Haveli, hours till midnight, Directions, WhatsApp.</span></li>
+        <li><b>The experiment lives on its own route.</b><span>The current site stays untouched until we choose to swap.</span></li>
+      </ol>
+      <div>
+        <div class="phones">
+          <div>
+            <div class="phone"><div class="screen">
+              <div class="bar"><span class="wm">Angel</span><span class="pill">Angel ▾</span></div>
+              <div class="hero"><h4>A lil Italian romance never hurt anybody.</h4><small>Old Italian bistro &amp; wine bar · Pink City · till 12</small>
+                <div class="ctas"><span class="btn kiss">Book a table</span><span class="btn ghost">See the menu</span></div></div>
+            </div></div>
+            <p class="cap">Home: the room, one line, two buttons.</p>
+          </div>
+          <div>
+            <div class="phone"><div class="screen">
+              <div class="bar"><span class="wm">Angel</span><span>✕</span></div>
+              <div class="steps"><i class="on">1 When</i><i>2 You</i></div>
+              <div class="sheet" style="flex:1">
+                <p class="t">How many of you?</p>
+                <div class="chips"><span class="chip">1</span><span class="chip on">2</span><span class="chip">3</span><span class="chip">4</span><span class="chip">5</span><span class="chip">6+</span></div>
+                <p class="t">When are we doing this?</p>
+                <div class="chips"><span class="chip on">Tonight</span><span class="chip">Tomorrow</span><span class="chip">Fri 24</span><span class="chip">Sat 25</span></div>
+                <p class="t">Pick a time</p>
+                <div class="chips"><span class="chip">7:00</span><span class="chip">7:30</span><span class="chip on">8:30</span><span class="chip">9:00</span><span class="chip">9:30</span><span class="chip">10:00</span></div>
+                <div class="btn kiss" style="margin-top:14px">Continue</div>
+              </div>
+            </div></div>
+            <p class="cap">Step 1: everything on one screen.</p>
+          </div>
+          <div>
+            <div class="phone"><div class="screen" style="background:var(--linen)">
+              <div class="bar" style="color:var(--chintz)"><span class="wm">Angel</span><span></span></div>
+              <div class="ticket gingham"><div style="background:var(--linen);padding:14px 10px;border-radius:3px">
+                <p style="font-weight:700;letter-spacing:.1em;font-size:8px;text-transform:uppercase">Table for 2</p>
+                <h5>It's a date.</h5>
+                <p>Tonight · 8:30 pm<br>Chelon ki Haveli, Pink City</p></div></div>
+              <div style="padding:0 14px;display:grid;gap:6px;color:var(--chintz)"><span class="btn" style="border:1px solid var(--chintz)">Add to calendar</span><span class="btn" style="border:1px solid var(--chintz)">Directions</span></div>
+            </div></div>
+            <p class="cap">Done: a ticket on gingham.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="kicker">Not this</p>
+    <h2>Things we're leaving behind.</h2>
+    <div class="nots">
+      <div><b>Navy and brass</b><span>The old site's palette reads bank, or every heritage hotel in Rajasthan.</span></div>
+      <div><b>Pink City clichés</b><span>No Hawa Mahal silhouettes, no pink-everything. Jaipur shows up through the haveli itself.</span></div>
+      <div><b>Magazine cosplay</b><span>No drop caps, no ruled columns, no tiny caps label above every heading.</span></div>
+      <div><b>Stock photography</b><span>If it's not their room, their plate or their people, it doesn't go on the site.</span></div>
+      <div><b>Booking as a form page</b><span>No 9-field page behind a “Reserve” link. It's two short steps from anywhere.</span></div>
+      <div><b>Cute everywhere</b><span>One joke per screen. Buttons stay plain so nobody has to decode them.</span></div>
+    </div>
+  </div>
+</section>
+
+<footer><div class="wrap">Photos: Google Maps listing and @angelandthesearchers, used as reference for this experiment. Swap for the team's originals before anything ships.</div></footer>
+</body>
+</html>
