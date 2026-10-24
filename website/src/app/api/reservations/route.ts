@@ -6,6 +6,7 @@ import { normalizePhoneForRateLimit } from "@/lib/reservations/phone";
 import { isTurnstileEnforced, verifyTurnstile } from "@/lib/reservations/turnstile";
 import { claimIdempotencyKey, completeIdempotencyKey } from "@/lib/reservations/idempotency";
 import { randomToken, sha256Hex } from "@/lib/reservations/hash";
+import { mapDatabaseError } from "@/lib/reservations/apiErrors";
 
 interface JsonResult {
   status: number;
@@ -20,7 +21,7 @@ async function handleCreate(request: Request, rawBody: string): Promise<JsonResu
   try {
     body = rawBody ? JSON.parse(rawBody) : {};
   } catch {
-    return { status: 400, body: { error: "Invalid request body." } };
+    return { status: 400, body: { error: "Invalid request body.", code: "VALIDATION_ERROR" } };
   }
 
   const restaurantSlug = typeof body.restaurantSlug === "string" ? body.restaurantSlug.trim() : "";
@@ -40,14 +41,14 @@ async function handleCreate(request: Request, rawBody: string): Promise<JsonResu
     || !guestName || guestName.length > 120
     || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)
   ) {
-    return { status: 400, body: { error: "Please check the reservation details and try again." } };
+    return { status: 400, body: { error: "Please check the reservation details and try again.", code: "VALIDATION_ERROR" } };
   }
 
   let supabase: ReturnType<typeof createServiceClient>;
   try {
     supabase = createServiceClient();
   } catch {
-    return { status: 503, body: { error: "Reservation service is not configured." } };
+    return { status: 503, body: { error: "Reservation service is not configured.", code: "SERVICE_UNAVAILABLE" } };
   }
 
   const clientIp = getClientIp(request);
@@ -95,23 +96,9 @@ async function handleCreate(request: Request, rawBody: string): Promise<JsonResu
   });
 
   if (error) {
-    if (error.message.includes("SLOT_UNAVAILABLE")) {
-      return { status: 409, body: { error: "That time was just booked. Please choose another available time.", code: "SLOT_UNAVAILABLE" } };
-    }
-    if (error.message.includes("RESTAURANT_NOT_FOUND")) {
-      return { status: 404, body: { error: "Restaurant not found.", code: "RESTAURANT_NOT_FOUND" } };
-    }
-    if (error.message.includes("CONTACT_REQUIRED")) {
-      return { status: 422, body: { error: "Please provide the required contact details.", code: "CONTACT_REQUIRED" } };
-    }
-    if (error.message.includes("OUTSIDE_BOOKING_WINDOW")) {
-      return { status: 422, body: { error: "That date or time isn't bookable online right now.", code: "OUTSIDE_BOOKING_WINDOW" } };
-    }
-    if (error.message.includes("INVALID_RESERVATION")) {
-      return { status: 400, body: { error: "Please check the reservation details and try again.", code: "VALIDATION_ERROR" } };
-    }
-    console.error("Reservation creation failed:", error.message);
-    return { status: 500, body: { error: "Could not complete the reservation. Please try again.", code: "INTERNAL_ERROR" } };
+    const mapped = mapDatabaseError(error.message);
+    if (mapped.code === "INTERNAL_ERROR") console.error("Reservation creation failed:", error.message);
+    return { status: mapped.status, body: { error: mapped.message, code: mapped.code } };
   }
 
   const result = data as { reservation_id: string; status: "confirmed" | "pending" };
@@ -137,7 +124,7 @@ export async function POST(request: Request) {
   try {
     supabase = createServiceClient();
   } catch {
-    return Response.json({ error: "Reservation service is not configured." }, { status: 503 });
+    return Response.json({ error: "Reservation service is not configured.", code: "SERVICE_UNAVAILABLE" }, { status: 503 });
   }
 
   const claim = await claimIdempotencyKey(supabase, idempotencyKey, rawBody);
