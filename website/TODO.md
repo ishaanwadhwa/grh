@@ -1,140 +1,106 @@
 # SUNDAY ROSE CLUB — Remaining Work
 
-**Last Updated:** 2026-03-26
+**Last Updated:** 2026-07
+
+See `docs/RESERVATIONS.md` (design) and `docs/RESERVATIONS-PLAN.md` (phased
+backend plan) for restaurant reservations.
 
 ---
 
-## Backend / Services (Not Yet Wired)
+## Done
 
-### Supabase (Database + Auth)
-- [ ] Create Supabase project
-- [ ] Set up database tables matching `src/lib/data/schema.ts`
-- [ ] Migrate mock data to real database
-- [ ] Replace mock imports in API routes with Supabase queries
-- [ ] Set up Row Level Security (RLS) policies
-- [ ] Configure Google OAuth provider
-- [ ] Configure email/password auth
-- [ ] Wire `src/lib/supabase/client.ts` and `server.ts` with real env vars
-- [ ] Add auth checks to booking/reservation API routes
+- Supabase project wired up (`src/lib/supabase/*`); schema in `supabase/migrations/001`–`013`
+- Admin panel (`/admin`): login, self-service password reset, users, properties/rooms,
+  restaurants, events, bookings, settings
+- Restaurant reservations backend: services/hours/date overrides, floor plan editor,
+  collision-safe table assignment, availability and booking RPCs
+- Admin reservations list with table assignment, live service floor (`/admin/service`)
+  with arrived/seated/complete/no-show and walk-ins
+- Customer reservation flow (`/reserve`, `InlineReservation`) calls the real API
+- Room availability/booking API routes read and write Supabase via `src/lib/supabase/queries.ts`
 
-### Razorpay (Payments)
-- [ ] Create Razorpay account (test mode)
-- [ ] Replace `src/app/api/payments/route.ts` stub with real Razorpay SDK
-- [ ] Implement payment signature verification in `/api/payments/verify`
-- [ ] Add Razorpay checkout modal to booking review page
-- [ ] Handle payment failures and retries
-- [ ] Set up webhook endpoint for async payment confirmations
-- [ ] Test multi-currency support (INR/USD/GBP)
+---
+
+## Restaurant Reservations — Public Launch
+
+- [ ] **Angels data fix:** all 16 tables are `max_capacity = 2`, so parties of 3+ get no online slots
+- [ ] Business: dedicated WhatsApp number + Meta Business verification (blocks WhatsApp)
+- [ ] Business: trial EazyDiner LiveTable, set allotment to match hold-back
+
+- [ ] Abuse protection: revoke `anon` on `create_restaurant_reservation`, call via
+      service-role in the API route, add rate limiting + Turnstile
+- [ ] Reservation confirmation email (Resend)
+- [ ] Guest manage link (cancel / modify)
+- [ ] Admin form for future phone/external bookings (not just walk-ins)
+- [ ] Max covers per slot (kitchen pacing)
+- [ ] Table combinations for large parties
+- [ ] Online hold-back (tables / % of covers reserved for walk-ins and partners)
+- [ ] Party-size-based seating duration
+- [ ] Integrate new customer UI (in progress — flatmate) and QA end to end
+
+### EazyDiner
+- [ ] `import_external_reservation` / `cancel_external_reservation` RPCs (idempotent on
+      `source + external_reference`, never reject for capacity)
+- [ ] Conflict flag in admin when an imported booking has no free table
+- [ ] Manual "Add external booking" form
+- [ ] Inbound email parser for EazyDiner confirmations/cancellations
+- [ ] Ask EazyDiner about a partner API
+
+---
+
+## Room Booking Flow
+
+- Full UI flow exists (`/book` → `/book/details` → `/book/review` → `/book/confirmation`)
+- [ ] Real Razorpay payments (`/api/payments` and `/api/payments/verify` are still stubs; review page uses mock payment)
+- [ ] Payment failure/retry handling + webhook for async confirmations
+- [ ] Multi-currency test (INR/USD/GBP)
+- [ ] Booking confirmation + cancellation emails
+- [ ] Concurrent booking conflict protection (equivalent of the restaurant exclusion constraint)
+- [ ] Tighten RLS on `bookings` (001 still allows public read/insert)
+- [ ] Property detail page still uses mock data (`src/app/properties/[slug]/page.tsx`)
+
+---
+
+## Other Integrations
 
 ### Resend (Email)
-- [ ] Create Resend account and verify domain
-- [ ] Build booking confirmation email template (React Email)
-- [ ] Build reservation confirmation email template
-- [ ] Build cancellation notification email
-- [ ] Wire email sending into booking and reservation API routes
-- [ ] Add welcome email on signup
+- [ ] Verify domain
+- [ ] Templates: booking confirmation, reservation confirmation, cancellation, welcome
 
 ### Sanity CMS
-- [ ] Create Sanity project
-- [ ] Install Sanity Studio (had esbuild issues — retry or use standalone)
-- [ ] Define schemas: Property, Room, Restaurant, Event
-- [ ] Migrate hardcoded content to Sanity
-- [ ] Replace mock data reads with Sanity GROQ queries
-- [ ] Set up image pipeline (Sanity CDN)
+- [ ] Create project + Studio, define schemas (Property, Room, Restaurant, Event)
+- [ ] Decide Sanity vs Supabase as source of truth for content (admin panel currently edits Supabase)
+
+### Contact & Newsletter
+- [ ] Contact form submission (Resend) + spam protection
+- [ ] Newsletter signup → Resend audience / Zoho
 
 ---
 
-## Frontend — UI Only (Backend Not Wired)
+## Customer Auth (Not Yet Built)
 
-### Restaurant Reservation (Inline)
-- `src/components/sections/InlineReservation.tsx` — UI is built
-- Currently hits mock `/api/reservations` endpoint
-- [ ] Wire to real Supabase database
-- [ ] Add auth check (require login before confirming)
-- [ ] Add real-time table availability checking
-- [ ] Send confirmation email on successful reservation
-
-### Room Booking Flow
-- Full UI flow exists (`/book` → `/book/details` → `/book/review` → `/book/confirmation`)
-- Currently uses mock data and mock payments
-- [ ] Wire to real Supabase database
-- [ ] Wire to real Razorpay payments
-- [ ] Add auth gate at guest details step
-- [ ] Send confirmation email on successful booking
-- [ ] Handle concurrent booking conflicts (optimistic locking)
-
-### Contact Form
-- `src/app/contact/page.tsx` — UI is built
-- [ ] Wire form submission to Resend or a form service
-- [ ] Add spam protection (honeypot or reCAPTCHA)
-
-### Newsletter Signup
-- `src/components/sections/NewsletterSignup.tsx` — UI is built
-- [ ] Wire to email service (Resend audience, Mailchimp, or Supabase table)
+- [ ] `/login`, `/signup`, `/account` (booking history)
+- [ ] Decide whether reservations require login (currently guest checkout)
 
 ---
 
-## Auth Pages (Not Yet Built)
+## Dynamic Pricing (Future)
 
-- [ ] `/login` — Login page (Google + email/password)
-- [ ] `/signup` — Registration page
-- [ ] `/account` — User profile + booking history
-- [ ] Auth redirect flow (login → return to previous page)
-- [ ] Protected routes (booking details, account page)
+`/api/pricing` currently returns `basePricePerNight × nights + 18% GST`.
+Phase 2: seasonal multipliers. Phase 3: external pricing service.
 
 ---
 
-## Dynamic Pricing Service (Future)
+## Operations / Channels (Phase 2)
 
-The pricing API (`/api/pricing`) is designed as a gateway:
-- **Currently:** Returns `basePricePerNight × nights + 18% GST`
-- **Phase 2:** Add seasonal multipliers
-- **Phase 3:** External microservice (Python/FastAPI) with ML model
-
-Data to capture from day one (via analytics, not DB):
-- User agent / device type
-- Booking lead time
-- Search patterns (dates, rooms viewed)
-- Currency selected
-- Time of booking
-- Returning vs. new user
-
----
-
-## Operations Dashboard (Phase 2)
-
-- [ ] Admin panel for managing properties, rooms, availability
-- [ ] Unified booking view (website + OTA channels)
-- [ ] Channel manager integration (Booking.com, Airbnb, MakeMyTrip)
+- [ ] Hotel channel manager (Booking.com, Airbnb, MakeMyTrip)
 - [ ] Revenue reporting by channel
-- [ ] Availability calendar with double-booking prevention
-
----
-
-## Zoho CRM Integration (Phase 2)
-
-Integration point for newsletters, guest management, and Members Club communication.
-
-- [ ] Set up Zoho CRM account + API credentials
-- [ ] Newsletter signup → create Zoho CRM contact (tag: "newsletter")
-- [ ] Booking confirmed → create Zoho CRM contact + deal (tag: "guest", link booking data)
-- [ ] Reservation confirmed → create Zoho CRM contact (tag: "diner")
-- [ ] Sync phone number + WhatsApp flag to Zoho contact fields
-- [ ] Members Club segmentation via custom tags/pipeline (visit count, last stay, preferences)
-- [ ] Zoho Campaigns integration for email marketing (event invites, new property announcements)
-- [ ] WhatsApp Business integration via Zoho for booking confirmations & guest communication
-- [ ] Contact form submissions → Zoho CRM lead
+- [ ] Zoho CRM: contacts from bookings/reservations/newsletter, WhatsApp, Members Club segmentation
 
 ---
 
 ## Polish & QA
 
-- [ ] Replace all placeholder images with real photography
-- [ ] Mobile responsiveness QA across all pages
-- [ ] SEO metadata on all pages
-- [ ] Open Graph images for social sharing
-- [ ] 404 page design
-- [ ] Loading states and skeleton screens
-- [ ] Error boundary components
-- [ ] Accessibility audit (keyboard nav, screen reader, contrast)
-- [ ] Performance audit (Core Web Vitals)
+- [ ] Real photography, mobile QA, SEO metadata, OG images
+- [ ] 404 page, loading states, error boundaries
+- [ ] Accessibility + Core Web Vitals audit
