@@ -113,6 +113,9 @@ all of it ✅ (`supabase/tests/010`-`014`, 86/86 passing).
 
 ## Phase P1B: Harden the public booking path (launch blocker)
 
+Brief: `docs/agent-briefs/P1B-public-hardening.md`. Also covers the fixes carried over from the P1A review (allocation lock).
+Response changes are **additive** so the live customer UI keeps working.
+
 **Tasks**
 1. Server-only Supabase client using `SUPABASE_SERVICE_ROLE_KEY`. **Revoke `anon`** on
    `create_restaurant_reservation` (and the new public functions) so the API route is the only way in.

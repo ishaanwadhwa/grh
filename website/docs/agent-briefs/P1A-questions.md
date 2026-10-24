@@ -169,3 +169,21 @@ this is considered UI-verified.
 5. `assign_reservation_tables` (`004`) still exists and is still granted to `authenticated`;
    it's just unused by the admin UI now. Nothing to revoke — P1B still plans to tighten
    public-RPC grants, not this one.
+
+---
+
+## Reviewer notes (P1A review)
+
+- **Accepted** all 9 commits. `022` diffs cleanly against `007`/`016` (table selection only). The engine's
+  largest-party-first, best-fit check is optimal for single tables. Deviations §1–§6 accepted.
+- **Fixed in `e01e70d`** (UI): "Book anyway" after `NO_TABLE_AVAILABLE` retried `auto` with an override, which can
+  never succeed, so it looped. It now saves with no table (flagged if overbooked). `OUTSIDE_SERVICE_HOURS` had no
+  text and wasn't overridable, so the hostess saw "Could not save" with no way forward. The exclusion-constraint
+  race is now mapped to `TABLE_ALREADY_RESERVED`.
+- **Carried into P1B task 1:** (a) no lock serialises the unassigned-capacity check, so a staff booking and an
+  online booking arriving together can both pass it; (b) `set_reservation_tables` accepts completed/no_show
+  reservations, which would re-block a table; (c) reassigning clears an `outside_hours` flag even though the booking is still outside hours.
+- Noted, not changed: `track_guest_visit_counters` relies on the update-event trigger firing first (alphabetical
+  trigger order: `reservations_log_update_event` < `reservations_track_guest_counters`). Don't rename either trigger.
+- `020` was dry-run against production in a transaction that rolled back: 2 guests, no changes, no merges. `020`–`023` are applied to production.
+- Browser click-through (QA steps 1–7) **still needs a human**; not done by the agent or the reviewer.
