@@ -103,6 +103,10 @@ export default function RestaurantFloorplanPage() {
   };
 
   // ---------- Saving ----------
+  // Every write asks for the changed row back (.select). An expired session gets no error and no row,
+  // so "nothing came back" is treated as a failed save (carried over from main's 2a960c8).
+
+  const NOT_SAVED = "Nothing was saved. Your session may have expired: sign in again and retry.";
 
   /** Update a table now, write it after `delay` ms (typing debounces, drags save at once). */
   const persistTable = (tableId: string, patch: Partial<FloorTableRow>, delay = 0) => {
@@ -115,10 +119,10 @@ export default function RestaurantFloorplanPage() {
       delete pending.current[tableId];
       if (!body) return;
       if ("label" in body && !String(body.label).trim()) { setStatus(""); return; } // keep typing; don't save an empty name
-      const { error } = await supabase.from("restaurant_tables").update(body).eq("id", tableId);
-      if (error) {
-        fail(error.message.includes("restaurant_tables_floorplan_id_label_key") ? "Two tables can't share a name. Pick another." : error);
-        void load();
+      const { data, error } = await supabase.from("restaurant_tables").update(body).eq("id", tableId).select("id");
+      if (error || !data?.length) {
+        fail(!error ? NOT_SAVED : error.message.includes("restaurant_tables_floorplan_id_label_key") ? "Two tables can't share a name. Pick another." : error);
+        void load(); // show what's really stored
       } else setStatus("saved");
     }, delay);
   };
@@ -128,10 +132,10 @@ export default function RestaurantFloorplanPage() {
     const previous = floorplan.layout_data;
     setFloorplan({ ...floorplan, layout_data: nextItems });
     setStatus("saving");
-    const { error } = await supabase.from("restaurant_floorplans").update({ layout_data: nextItems }).eq("id", floorplan.id);
-    if (error) {
+    const { data, error } = await supabase.from("restaurant_floorplans").update({ layout_data: nextItems }).eq("id", floorplan.id).select("id");
+    if (error || !data?.length) {
       setFloorplan((current) => current ? { ...current, layout_data: previous } : current);
-      fail(error);
+      fail(error || NOT_SAVED);
     } else setStatus("saved");
   };
 
@@ -149,6 +153,14 @@ export default function RestaurantFloorplanPage() {
     setRoomTool("wall");
     say("Start with the walls, then switch to Tables");
   };
+
+  // Warn before leaving while a save is still on its way (typing debounces up to 600ms).
+  useEffect(() => {
+    if (status !== "saving") return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [status]);
 
   // ---------- Tables ----------
 
@@ -184,9 +196,9 @@ export default function RestaurantFloorplanPage() {
   const deleteTable = async () => {
     if (!selected) return;
     setConfirmDelete(false);
-    const { error } = await supabase.from("restaurant_tables").delete().eq("id", selected.id);
-    if (error) {
-      fail(error.code === "23503" ? `${selected.label} has bookings on it, so it can't be deleted. Switch off “Bookable online” instead.` : error);
+    const { data, error } = await supabase.from("restaurant_tables").delete().eq("id", selected.id).select("id");
+    if (error || !data?.length) {
+      fail(!error ? NOT_SAVED : error.code === "23503" ? `${selected.label} has bookings on it, so it can't be deleted. Switch off “Bookable online” instead.` : error);
       return;
     }
     setTables((current) => current.filter((table) => table.id !== selected.id));
@@ -198,8 +210,8 @@ export default function RestaurantFloorplanPage() {
   const enableAll = async () => {
     if (!floorplan) return;
     const count = tables.filter((table) => !table.is_active).length;
-    const { error } = await supabase.from("restaurant_tables").update({ is_active: true }).eq("floorplan_id", floorplan.id).eq("is_active", false);
-    if (error) { fail(error); return; }
+    const { data, error } = await supabase.from("restaurant_tables").update({ is_active: true }).eq("floorplan_id", floorplan.id).eq("is_active", false).select("id");
+    if (error || !data?.length) { fail(error || NOT_SAVED); return; }
     setTables((current) => current.map((table) => ({ ...table, is_active: true })));
     say(`${plural(count, "table")} now bookable`);
   };
