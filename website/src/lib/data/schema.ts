@@ -57,6 +57,17 @@ export interface Restaurant {
   hours: string;
   images: string[];
   instagramUrl?: string | null;
+  menuPdfUrl?: string | null;
+  // Public page (migration 040). Empty string / null = hide that bit on the site.
+  area?: string;
+  tagline?: string;
+  address?: string;
+  phone?: string;
+  directionsUrl?: string | null;
+  google?: { rating: number; reviews: number; url: string | null } | null;
+  bookingDaysAhead?: number;
+  bookingNote?: string;
+  host?: { name: string; role: string; quote: string; photoUrl: string | null } | null;
 }
 
 // --- Booking ---

@@ -29,7 +29,7 @@ interface Booking {
   status: string;
   seated_at: string | null;
   special_requests: string | null;
-  phone_verified?: boolean | null; // migration 014
+  phone_verified?: boolean | null; // from the backend handoff (phone codes); not on main yet, so optional
 }
 interface Walkin { name: string; phone: string; party: number; serviceId: string; tableIds: string[]; }
 

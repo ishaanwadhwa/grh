@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-const MAX_BYTES = 10 * 1024 * 1024; // matches the bucket limit (migration 015)
+const MAX_BYTES = 10 * 1024 * 1024; // matches the restaurant-menus bucket limit (backend handoff migration, not on main yet)
 
 interface PdfUploaderProps {
   bucket: string;

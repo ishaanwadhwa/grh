@@ -77,6 +77,16 @@ function mapRestaurant(row: any): Restaurant {
     hours: row.hours,
     images: row.images || [],
     instagramUrl: row.instagram_url || null,
+    menuPdfUrl: row.menu_pdf_url || null,
+    area: row.area || "",
+    tagline: row.tagline || "",
+    address: row.address || "",
+    phone: row.phone || "",
+    directionsUrl: row.directions_url || null,
+    google: row.google_rating != null ? { rating: Number(row.google_rating), reviews: row.google_reviews || 0, url: row.google_url || null } : null,
+    bookingDaysAhead: row.booking_days_ahead ?? 14,
+    bookingNote: row.booking_note || "",
+    host: row.host_name ? { name: row.host_name, role: row.host_role || "", quote: row.host_quote || "", photoUrl: row.host_photo_url || null } : null,
   };
 }
 
