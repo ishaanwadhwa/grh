@@ -169,6 +169,19 @@ export async function getPropertyBySlug(slug: string): Promise<Property | null> 
   return property;
 }
 
+export async function getFeaturedProperty(): Promise<Property | null> {
+  const supabase = getPublicClient();
+  const { data, error } = await supabase
+    .from("properties")
+    .select("*")
+    .eq("featured", true)
+    .limit(1)
+    .single();
+
+  if (error || !data) return null;
+  return mapProperty(data);
+}
+
 // ============================================
 // Rooms
 // ============================================
@@ -235,7 +248,9 @@ export async function getAvailableRooms(
 // Restaurants
 // ============================================
 
-export async function getRestaurants(propertyId?: string): Promise<Restaurant[]> {
+export async function getRestaurants(
+  { propertyId, featured }: { propertyId?: string; featured?: boolean } = {}
+): Promise<Restaurant[]> {
   const supabase = getPublicClient();
   let query = supabase
     .from("restaurants")
@@ -246,6 +261,9 @@ export async function getRestaurants(propertyId?: string): Promise<Restaurant[]>
 
   if (propertyId) {
     query = query.eq("property_id", propertyId);
+  }
+  if (featured) {
+    query = query.eq("featured", true);
   }
 
   const { data, error } = await query;

@@ -1,8 +1,4 @@
-"use client";
-
-import { useState, useEffect } from "react";
 import Link from "next/link";
-import { fetchProperties } from "@/lib/supabase/browser-queries";
 import type { Property } from "@/lib/data/schema";
 
 const navLinks = [
@@ -18,15 +14,7 @@ const socialLinks = [
   { href: "https://twitter.com/sundayroseclub", label: "Twitter" },
 ];
 
-export default function Footer() {
-  const [property, setProperty] = useState<Property | null>(null);
-
-  useEffect(() => {
-    fetchProperties().then((props) => {
-      if (props.length > 0) setProperty(props[0]);
-    });
-  }, []);
-
+export default function Footer({ property }: { property?: Property }) {
   return (
     <footer className="border-t border-accent-gold/20 bg-background-dark">
       <div className="mx-auto max-w-6xl px-6 py-16">

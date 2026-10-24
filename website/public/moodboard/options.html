@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Booking Pieces</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..800;1,6..96,400..800&family=Pinyon+Script&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: oklch(96.5% 0.013 82);
+  --desk: oklch(91.5% 0.02 78);
+  --ink: oklch(30% 0.05 228);
+  --ink-2: oklch(30% 0.05 228 / .62);
+  --ink-3: oklch(30% 0.05 228 / .38);
+  --rule: oklch(30% 0.05 228 / .16);
+  --red: oklch(50% 0.19 25);
+  --serif: "Bodoni Moda", "Didot", serif;
+  --script: "Pinyon Script", cursive;
+  --ease: cubic-bezier(.22, 1, .36, 1);
+}
+* { box-sizing: border-box; margin: 0; }
+body { background: var(--desk); color: var(--ink); font: 400 16px/1.5 var(--serif); font-optical-sizing: auto; -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+button:focus-visible { outline: 1.5px solid var(--red); outline-offset: 3px; border-radius: 2px; }
+
+.page { max-width: 1180px; margin: 0 auto; padding: clamp(40px, 7vw, 88px) 16px 120px; }
+.intro h1 { font: italic 400 clamp(38px, 6vw, 64px)/1.02 var(--serif); letter-spacing: -.02em; }
+.intro p { max-width: 60ch; margin-top: 16px; color: var(--ink-2); font-size: 17px; }
+.intro .how { margin-top: 20px; font-size: 15px; color: var(--ink); }
+.intro .how b { font-weight: 600; }
+
+.group { margin-top: clamp(56px, 8vw, 96px); }
+.group h2 { font: italic 400 30px/1.1 var(--serif); display: flex; gap: 14px; align-items: baseline; }
+.group h2 span { font: 600 11px/1 var(--serif); letter-spacing: .18em; text-transform: uppercase; color: var(--red); font-style: normal; }
+.group > p { color: var(--ink-2); margin-top: 6px; font-size: 15px; max-width: 62ch; }
+.row { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 22px; }
+.opt { display: flex; flex-direction: column; gap: 12px; }
+.opt header { display: flex; align-items: baseline; gap: 10px; }
+.opt header b { font: 700 13px/1 var(--serif); letter-spacing: .08em; }
+.opt header i { font-size: 16px; }
+.opt .why { font-size: 13.5px; color: var(--ink-2); line-height: 1.45; min-height: 3em; }
+.sheet { background: var(--paper); border-radius: 18px; padding: 22px 20px; box-shadow: 0 1px 0 oklch(100% 0 0 / .6) inset, 0 18px 40px -28px oklch(25% 0.04 60 / .45); min-height: 150px; display: flex; flex-direction: column; justify-content: center; }
+
+.cap { font: 600 10.5px/1 var(--serif); letter-spacing: .18em; text-transform: uppercase; color: var(--ink-2); }
+.q { font: italic 400 21px/1.2 var(--serif); margin-bottom: 14px; }
+
+/* Ink ring, drawn by hand */
+.ring { position: absolute; left: -9px; top: -4px; width: calc(100% + 18px); height: calc(100% + 8px); pointer-events: none; overflow: visible; }
+.ring path { fill: none; stroke: var(--ink); stroke-width: 1.4; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw .45s var(--ease) forwards; vector-effect: non-scaling-stroke; }
+.ring.red path { stroke: var(--red); }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+
+/* B · guests */
+.b1 { display: flex; justify-content: space-between; align-items: center; }
+.b1 button { position: relative; display: grid; place-items: center; line-height: 1; font-size: 27px; width: 34px; height: 46px; color: var(--ink-2); transition: color .2s; }
+.b1 button.on { color: var(--ink); }
+.b1 .more { font-style: italic; font-size: 19px; width: auto; padding: 0 2px; }
+
+.b2 { font: italic 400 22px/1.9 var(--serif); }
+.b2 button { position: relative; color: var(--ink-2); padding: 0 1px; transition: color .2s; }
+.b2 button.on { color: var(--ink); }
+.b2 .dot { color: var(--ink-3); padding: 0 6px; font-style: normal; }
+.b2 .under { position: absolute; left: -2px; bottom: 2px; width: calc(100% + 4px); height: 8px; overflow: visible; pointer-events: none; }
+.b2 .under path { fill: none; stroke: var(--red); stroke-width: 1.5; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw .4s var(--ease) forwards; vector-effect: non-scaling-stroke; }
+
+.b3 { display: flex; justify-content: space-between; }
+.b3 button { font-size: 26px; font-weight: 400; width: 34px; height: 52px; display: grid; place-items: center; position: relative; color: var(--ink-3); transition: color .2s, font-weight .2s; }
+.b3 button::after { content: ""; position: absolute; bottom: 4px; width: 5px; height: 5px; border-radius: 50%; background: var(--red); transform: scale(0); transition: transform .3s var(--ease); }
+.b3 button.on { color: var(--ink); font-weight: 600; }
+.b3 button.on::after { transform: scale(1); }
+
+/* C · the summary that replaces District's pills */
+.c1 { font: italic 400 22px/1.45 var(--serif); }
+.c1 button { font-style: italic; border-bottom: 1px dotted var(--ink-2); padding-bottom: 1px; line-height: 1.2; }
+.c1 button.todo { color: var(--ink-3); border-bottom-color: var(--ink-3); }
+.c1 button.now { color: var(--red); border-bottom: 1px solid var(--red); }
+
+.c2 { display: grid; gap: 4px; }
+.c2 button { display: flex; align-items: baseline; gap: 8px; padding: 6px 0; text-align: left; width: 100%; }
+.c2 .cap { flex: none; width: 58px; }
+.c2 .lead { flex: 1; border-bottom: 1.5px dotted var(--ink-3); transform: translateY(-4px); }
+.c2 em { font-size: 19px; }
+.c2 button.todo em { color: var(--ink-3); }
+.c2 button.now em { color: var(--red); }
+
+.c3 { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.c3 button { padding: 12px 6px 10px; text-align: center; position: relative; }
+.c3 button + button { border-left: 1px solid var(--rule); }
+.c3 .v { display: block; font-size: 20px; margin-top: 6px; }
+.c3 .todo .v { color: var(--ink-3); }
+.c3 button::after { content: ""; position: absolute; left: 22%; right: 22%; bottom: -1px; height: 2px; background: var(--red); transform: scaleX(0); transition: transform .35s var(--ease); }
+.c3 button.now::after { transform: scaleX(1); }
+
+/* D · date */
+.strip { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -20px; padding: 4px 20px; scroll-snap-type: x proximity; }
+.strip::-webkit-scrollbar { display: none; }
+.strip button { scroll-snap-align: start; flex: none; }
+.d1 button { width: 58px; padding: 9px 0 10px; border: 1px solid transparent; border-radius: 3px; text-align: center; transition: border-color .25s; }
+.d1 .cap { font-size: 9.5px; display: block; }
+.d1 .n { display: block; font-size: 26px; line-height: 1.1; margin-top: 6px; }
+.d1 button.on { border-color: var(--ink); }
+.d1 button.on .cap { color: var(--red); }
+
+.d2 { gap: 22px; border-bottom: 1px solid var(--rule); position: relative; }
+.d2 button { padding: 6px 0 12px; font-size: 18px; color: var(--ink-2); position: relative; white-space: nowrap; }
+.d2 button.on { color: var(--ink); }
+.d2 button.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1.5px; background: var(--ink); }
+.d2 button small { font-style: italic; font-size: 14px; color: var(--ink-3); margin-left: 4px; }
+
+.d3 { align-items: end; gap: 2px; }
+.d3 .month { flex: none; writing-mode: vertical-rl; transform: rotate(180deg); padding: 0 8px 6px 0; color: var(--red); }
+.d3 button { width: 40px; text-align: center; }
+.d3 .w { display: block; font-size: 10px; letter-spacing: .1em; color: var(--ink-3); }
+.d3 .n { display: grid; place-items: center; width: 36px; height: 36px; margin: 6px auto 0; border-radius: 50%; font-size: 18px; transition: background .25s, color .25s; }
+.d3 button.on .n { background: var(--ink); color: var(--paper); }
+
+/* D round two · word tabs */
+.dt { gap: 20px; position: relative; }
+.dt button { padding: 6px 0 12px; font-size: 18px; color: var(--ink-2); white-space: nowrap; position: relative; transition: color .2s; }
+.dt button small { font-style: italic; font-size: 14px; color: var(--ink-3); margin-left: 3px; }
+.dt button.on { color: var(--ink); }
+.d4 { gap: 22px; border-bottom: 1px solid var(--rule); }
+.d4 button { display: grid; gap: 4px; text-align: left; padding: 4px 0 12px; }
+.d4 button small { margin: 0; font-size: 13px; }
+.d4 button.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--ink); }
+.d5 { border-bottom: 1px solid var(--rule); }
+.d5 .bar { position: absolute; bottom: -1px; left: 0; height: 1.5px; width: 0; background: var(--ink); transition: transform .45s var(--ease), width .45s var(--ease); }
+.d6 { gap: 4px; }
+.d6 button { padding: 9px 16px; border-radius: 999px; transition: background .25s, color .25s; }
+.d6 button.on { background: var(--ink); color: var(--paper); }
+.d6 button.on small { color: oklch(96.5% 0.013 82 / .7); }
+.d7 button::after { content: ""; position: absolute; bottom: 2px; left: 50%; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: var(--red); transform: scale(0); transition: transform .3s var(--ease); }
+.d7 button.on::after { transform: scale(1); }
+.d8 { gap: 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.d8 button { display: grid; gap: 4px; padding: 10px 16px 10px; text-align: center; }
+.d8 button + button { border-left: 1px solid var(--rule); }
+.d8 button small { margin: 0; font-size: 13px; }
+.d8 button::after { content: ""; position: absolute; left: 20%; right: 20%; bottom: -1px; height: 2px; background: var(--red); transform: scaleX(0); transition: transform .35s var(--ease); }
+.d8 button.on::after { transform: scaleX(1); }
+
+/* E · time */
+.e-head { display: flex; align-items: baseline; gap: 8px; margin: 2px 0 10px; }
+.e-head .lead { flex: 1; border-bottom: 1.5px dotted var(--ink-3); transform: translateY(-4px); }
+.e-head em { font-size: 14px; color: var(--ink-2); }
+.e1 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px 0; }
+.e1 button { position: relative; justify-self: center; display: grid; place-items: center; line-height: 1; padding: 0 6px; font-size: 19px; height: 40px; color: var(--ink-2); }
+.e1 button.on { color: var(--ink); }
+
+.e2 { display: grid; }
+.e2 button { display: flex; align-items: baseline; gap: 8px; padding: 9px 0; border-top: 1px solid var(--rule); text-align: left; }
+.e2 button:last-child { border-bottom: 1px solid var(--rule); }
+.e2 .t { font-size: 19px; width: 74px; }
+.e2 .lead { flex: 1; border-bottom: 1.5px dotted var(--ink-3); transform: translateY(-4px); }
+.e2 em { color: var(--ink-2); font-size: 15px; }
+.e2 .tick { width: 18px; height: 14px; opacity: 0; }
+.e2 .tick path { fill: none; stroke: var(--red); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
+.e2 button.on .t { color: var(--red); font-style: italic; }
+.e2 button.on .tick { opacity: 1; }
+.e2 button.on .tick path { animation: draw .35s var(--ease) forwards; }
+
+.e3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.e3 button { height: 46px; border: 1px solid var(--rule); border-radius: 8px; font-size: 18px; transition: background .2s, color .2s, border-color .2s; }
+.e3 button.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+/* F · main button */
+.f { display: flex; flex-direction: column; gap: 12px; }
+.btn { width: 100%; height: 54px; display: flex; align-items: center; justify-content: center; gap: 10px; border-radius: 999px; font: italic 400 19px/1 var(--serif); transition: transform .15s var(--ease), opacity .2s, background .25s, color .25s, box-shadow .25s; }
+.btn:active { transform: scale(.985); }
+.btn.off { opacity: .32; pointer-events: none; }
+.picked { margin-left: auto; font: italic 400 12px/1 var(--serif); color: var(--red); }
+.f1 { background: var(--red); color: var(--paper); box-shadow: inset 0 0 0 3px var(--red), inset 0 0 0 4px oklch(96% 0.013 82 / .55); }
+.f4 { background: var(--ink); color: var(--paper); box-shadow: inset 0 0 0 3px var(--ink), inset 0 0 0 4px oklch(96% 0.013 82 / .35); }
+.f5 { background: var(--red); color: var(--paper); justify-content: space-between; padding: 0 6px 0 26px; }
+.f5 .knob { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: var(--paper); color: var(--red); font-style: normal; font-family: system-ui; font-size: 18px; transition: transform .3s var(--ease); }
+.f5:active .knob, .f5:hover .knob { transform: translateX(3px); }
+.f6 { box-shadow: inset 0 0 0 1.5px var(--ink); color: var(--red); }
+.f6:hover { box-shadow: inset 0 0 0 1.5px var(--ink), 0 6px 18px -12px oklch(30% 0.05 228 / .6); }
+.f6:active { background: var(--ink); color: var(--paper); }
+.f7 { background: var(--red); color: var(--paper); justify-content: space-between; padding: 0 6px 0 22px; }
+.f7 .recap { font-size: 15px; opacity: .9; }
+.f7 .act { height: 42px; padding: 0 20px; border-radius: 999px; display: grid; place-items: center; background: var(--paper); color: var(--red); font-size: 17px; }
+.f8 { color: oklch(98% 0.01 82); background: radial-gradient(120% 140% at 50% 120%, oklch(72% 0.15 52) 0%, var(--red) 55%, oklch(45% 0.18 25) 100%); box-shadow: inset 0 1px 0 oklch(100% 0 0 / .25), 0 10px 24px -14px oklch(50% 0.19 25 / .9); }
+.f8:hover { box-shadow: inset 0 1px 0 oklch(100% 0 0 / .25), 0 14px 30px -14px oklch(55% 0.19 35 / .95); }
+
+/* G · fields, borrowed systems */
+.g3 input, .g4 input, .g5 input, .g6 input { all: unset; flex: 1; min-width: 0; font: 400 18px/1.3 var(--serif); color: var(--ink); }
+.g3 input::placeholder, .g4 input::placeholder, .g5 input::placeholder, .g6 input::placeholder { color: var(--ink-3); font-style: italic; }
+.pre { font-weight: 400; font-style: italic; color: var(--ink-2); }
+.sheet.g3, .sheet.g4, .sheet.g5, .sheet.g6 { justify-content: normal; }
+.grp { background: oklch(99% 0.006 82); border-radius: 12px; box-shadow: 0 0 0 1px var(--rule); }
+.r { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 16px; position: relative; cursor: text; }
+.r + .r::before { content: ""; position: absolute; top: 0; left: 16px; right: 0; height: 1px; background: var(--rule); }
+.r > span:first-child { flex: none; width: 58px; font-size: 16px; }
+.g4 { gap: 12px; }
+.fl { display: block; background: oklch(92.5% 0.018 80); border-radius: 8px 8px 0 0; padding: 8px 14px 7px; border-bottom: 1px solid var(--ink-2); cursor: text; transition: border-color .2s; }
+.fl:focus-within { border-bottom: 2px solid var(--red); padding-bottom: 6px; }
+.fl:focus-within .lb { color: var(--red); }
+.lb { display: block; font-size: 12.5px; color: var(--ink-2); margin-bottom: 2px; }
+.lb i { color: var(--ink-3); }
+.rw { display: flex; gap: 8px; align-items: baseline; }
+.stack { border: 1px solid var(--ink-3); border-radius: 12px; }
+.cell { display: block; padding: 10px 14px 9px; position: relative; cursor: text; }
+.cell + .cell { border-top: 1px solid var(--ink-3); }
+.cell .lb { font: 600 10.5px/1.2 var(--serif); letter-spacing: .16em; text-transform: uppercase; }
+.cell .lb i { font: italic 400 12px var(--serif); letter-spacing: 0; text-transform: none; }
+.cell:focus-within { box-shadow: 0 0 0 2px var(--ink); border-radius: 12px; z-index: 1; }
+.g6 { gap: 14px; }
+.g6 label { display: block; }
+.g6 .lb { font-size: 14px; color: var(--ink); margin-bottom: 6px; }
+.box { display: flex; align-items: center; gap: 8px; height: 50px; padding: 0 14px; background: oklch(92.5% 0.018 80); border: 1.5px solid transparent; border-radius: 12px; cursor: text; transition: border-color .2s, background .2s; }
+.box:focus-within { border-color: var(--ink); background: oklch(99% 0.006 82); }
+
+/* H · confirmation */
+.h-wrap { min-height: 300px; }
+.ticket { position: relative; background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+.gingham { height: 26px; background-color: var(--paper); background-image: repeating-linear-gradient(0deg, oklch(30% 0.05 228 / .12) 0 7px, transparent 7px 14px), repeating-linear-gradient(90deg, oklch(30% 0.05 228 / .12) 0 7px, transparent 7px 14px); }
+.ticket .body { padding: 18px 18px 14px; }
+.big { font: italic 400 34px/1 var(--serif); letter-spacing: -.01em; margin: 6px 0 14px; }
+.leaders { display: grid; gap: 6px; font-size: 15px; }
+.leaders div { display: flex; gap: 8px; align-items: baseline; }
+.leaders .lead { flex: 1; border-bottom: 1.5px dotted var(--ink-3); transform: translateY(-4px); }
+.perf { position: relative; border-top: 1.5px dashed var(--ink-3); margin: 0 14px; }
+.perf::before, .perf::after { content: ""; position: absolute; top: -9px; width: 16px; height: 16px; border-radius: 50%; background: var(--desk); }
+.perf::before { left: -23px; } .perf::after { right: -23px; }
+.stub { padding: 12px 18px 14px; display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-2); }
+
+.h2card { position: relative; padding: 22px 20px; }
+.h2card .big { max-width: 68%; }
+.stamp { position: absolute; right: -10px; top: -24px; width: 96px; height: 96px; color: var(--red); opacity: .82; transform: rotate(-14deg) scale(1.4); animation: stamp .45s var(--ease) .15s forwards; opacity: 0; }
+@keyframes stamp { to { transform: rotate(-14deg) scale(1); opacity: .82; } }
+.stamp text { font: 600 9.6px var(--serif); letter-spacing: .14em; fill: currentColor; }
+
+.letter { padding: 26px 22px; }
+.letter p:not(.big):not(.sig) { margin-top: 10px; color: var(--ink-2); font-size: 16.5px; line-height: 1.55; }
+.sig { font: 400 40px/1 var(--script); color: var(--red); margin-top: 14px; }
+.links { display: flex; gap: 18px; margin-top: 16px; font-style: italic; font-size: 15px; }
+.links a { color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; text-decoration-color: var(--ink-3); }
+
+.replay { font: italic 400 13px/1 var(--serif); color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; align-self: flex-start; }
+
+/* A · the sheet over the photo */
+.mini { position: relative; height: 230px; border-radius: 16px; overflow: hidden; background: url(/images/angel/ig2.jpg) center 30%/cover; display: flex; align-items: flex-end; }
+.msheet { width: 100%; height: 72%; background: var(--paper); padding: 16px 20px; position: relative; }
+.msheet .mt { font: 400 22px/1.2 var(--serif); margin: 6px 0 14px; }
+.msheet .mt i { font-style: italic; }
+.a1 { border-radius: 20px 20px 0 0; }
+.a1 .grab { display: block; width: 36px; height: 3px; border-radius: 3px; background: var(--ink-3); margin: -4px auto 8px; }
+.a2::before { content: ""; position: absolute; left: 0; right: 0; top: -7px; height: 8px; background: radial-gradient(circle 7px at 7px 8px, var(--paper) 6.6px, transparent 7px) 0 0/14px 8px repeat-x; }
+.a3 { border-radius: 20px 20px 0 0; padding: 10px 10px 0; }
+.a3 .frame { height: 100%; border: 3px double var(--ink-3); border-bottom: 0; border-radius: 13px 13px 0 0; padding: 16px 14px; }
+
+/* A4 to A7 · more sheets */
+.msheet .sc { font: 400 18px/1.2 var(--script); color: var(--ink-2); }
+.a4 { border-radius: 20px 20px 0 0; background: oklch(99% 0.004 85); box-shadow: 0 -18px 40px -20px oklch(15% 0.02 55 / .5); text-align: center; }
+.a4 .rule { display: block; width: 28px; height: 2px; margin: -6px auto 0; background: var(--red); border-radius: 2px; }
+.a5 { padding: 0; border-radius: 20px 20px 0 0; overflow: hidden; }
+.a5 .band { height: 74px; display: flex; align-items: flex-end; padding: 0 20px 10px; background: linear-gradient(to top, oklch(15% 0.02 55 / .85), oklch(15% 0.02 55 / .2)), url(/images/angel/g1.jpg) center 62%/cover; }
+.a5 .band .mt { margin: 0; color: oklch(97% 0.01 82); }
+.a6 { border-radius: 0; background-color: var(--paper); }
+.a6::before { content: ""; position: absolute; left: 0; right: 0; top: -9px; height: 10px; background: radial-gradient(circle 6px at 8px 10px, transparent 5.5px, var(--paper) 6px) 0 0/16px 10px repeat-x; }
+.a6 .dash { display: block; margin: 4px 0 0; border-top: 1.5px dashed var(--ink-3); }
+.mini:has(.a7) { padding: 0 10px 10px; }
+.a7 { border-radius: 22px; height: 68%; }
+
+/* D9 to D12 · around the ticket rail */
+.d9 button.on { background: oklch(93.5% 0.014 80); }
+.d10 button.on { background: var(--ink); color: var(--paper); }
+.d10 button.on small { color: oklch(96.5% 0.013 82 / .75); }
+.d10 button::after { display: none; }
+.d11 .av { display: block; margin-top: 2px; font: normal 600 11px/1 var(--serif); letter-spacing: .12em; color: oklch(55% 0.13 150); }
+.d11 .av.full { letter-spacing: 0; color: var(--ink-3); }
+.d12 button { gap: 2px; }
+.d12 button small { margin: 0; font-size: 12px; font-style: normal; color: var(--ink-2); }
+.d12 button span { font-size: 26px; line-height: 1.1; }
+
+/* I · OTP */
+.otp { position: relative; display: flex; gap: 8px; margin: 2px 0 16px; cursor: text; }
+.otp input { position: absolute; inset: 0; opacity: 0; font-size: 16px; }
+.i1 span { flex: 1; max-width: 44px; height: 54px; display: grid; place-items: center; font-size: 28px; border-bottom: 1.5px solid var(--ink-3); transition: border-color .2s; }
+.i1 span.cur { border-bottom-color: var(--red); }
+.i3 span { flex: none; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--ink-3); display: grid; place-items: center; font-size: 19px; transition: border-color .2s; }
+.i3 span.full { border-color: var(--ink); }
+.i3 span.cur { border-color: var(--red); }
+.otp.i2 input { position: static; opacity: 1; width: 100%; border: 0; background: none; outline: 0; color: var(--ink); font: 400 32px/1 var(--serif); letter-spacing: .5em; padding: 6px 0 8px; border-bottom: 1.5px solid var(--ink-3); transition: border-color .2s; }
+.otp.i2 input:focus { border-bottom-color: var(--red); }
+.otp.i2 input::placeholder { color: var(--ink-3); }
+.otp-meta { display: flex; justify-content: space-between; font-style: italic; font-size: 14px; color: var(--ink-2); }
+.otp-meta a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--ink-3); text-underline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+</style>
+</head>
+<body>
+<main class="page">
+  <section class="intro">
+    <h1>Booking pieces, in our hand.</h1>
+    <p>The flow stays District-smooth: one sheet, tap to move on, your answers fold into a summary at the top, one main button. These are the pieces of that sheet, drawn in Angel's language instead of stock chips and pills. Everything here is tappable.</p>
+    <p class="how">Your picks: <b>A3 · B3 · C3 · D3 · E1 · G6 · I3 · H3</b>. New: sheets <b>A4 to A7</b>, and <b>D9 to D12</b> around the ticket rail (D8).</p>
+  </section>
+
+  <!-- A: THE SHEET -->
+  <section class="group">
+    <h2><span>A</span>The sheet</h2>
+    <p>Book a table opens one sheet over the photo. Everything else lives inside it.</p>
+    <div class="row">
+      <div class="opt">
+        <header><b>A1</b><i>Clean sheet</i></header>
+        <p class="why">Soft rounded top, a fine grab line, the title in italic. Lets the pieces inside do the talking.</p>
+        <div class="mini"><div class="msheet a1"><span class="grab"></span><p class="mt">Booking at <i>Angel</i></p><p class="cap">How many of you?</p></div></div>
+      </div>
+      <div class="opt">
+        <header><b>A2</b><i>Tablecloth edge</i></header>
+        <p class="why">The top edge is a fine scallop, like the ruffled skirt on their tables. One quiet nod, nothing else.</p>
+        <div class="mini"><div class="msheet a2"><p class="mt">Booking at <i>Angel</i></p><p class="cap">How many of you?</p></div></div>
+      </div>
+      <div class="opt">
+        <header><b>A3</b><i>Menu card</i></header>
+        <p class="why">A double hairline frame inside the sheet, title centred like a printed menu. Most formal.</p>
+        <div class="mini"><div class="msheet a3"><div class="frame"><p class="cap" style="text-align:center">Angel and the Searchers</p><p class="mt" style="text-align:center">A table, please</p></div></div></div>
+      </div>
+      <div class="opt">
+        <header><b>A4</b><i>Plain white card</i></header>
+        <p class="why">No frame at all: white, a soft shadow, the script name and a short red rule under the title. The cleanest.</p>
+        <div class="mini"><div class="msheet a4"><p class="sc">Angel and the Searchers</p><p class="mt">How many of you?</p><span class="rule"></span></div></div>
+      </div>
+      <div class="opt">
+        <header><b>A5</b><i>Photo header</i></header>
+        <p class="why">The top of the sheet is a slim strip of the candlelit table, the title set on it. Keeps the mood while you book.</p>
+        <div class="mini"><div class="msheet a5"><div class="band"><p class="mt">How many of you?</p></div><p class="cap" style="padding:14px 20px 0">Guests</p></div></div>
+      </div>
+      <div class="opt">
+        <header><b>A6</b><i>Ticket edge</i></header>
+        <p class="why">The top edge is punched like a ticket stub, a dashed line just under it. Plays into C3 and the ticket rail.</p>
+        <div class="mini"><div class="msheet a6"><p class="mt" style="text-align:center">How many of you?</p><span class="dash"></span></div></div>
+      </div>
+      <div class="opt">
+        <header><b>A7</b><i>Floating card</i></header>
+        <p class="why">Lifted off the edges with rounded corners all round, like iOS sheets. The photo shows on every side.</p>
+        <div class="mini"><div class="msheet a7"><p class="mt">How many of you?</p><p class="cap">Angel and the Searchers</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- B: GUESTS -->
+  <section class="group">
+    <h2><span>B</span>How many guests</h2>
+    <p>First thing the sheet asks. A tap picks and moves on to the date.</p>
+    <div class="row">
+      <div class="opt">
+        <header><b>B1</b><i>Ink ring</i></header>
+        <p class="why">Numerals, circled by hand like a waiter's order pad. Quietest of the three.</p>
+        <div class="sheet"><p class="q">How many of you?</p>
+          <div class="b1 pick" data-mark="ring"><button>1</button><button class="on">2</button><button>3</button><button>4</button><button>5</button><button>6</button><button>7</button><button>8</button><button class="more">9+</button></div>
+        </div>
+      </div>
+      <div class="opt">
+        <header><b>B2</b><i>Said out loud</i></header>
+        <p class="why">Written as words in italic, picked with a red pen stroke. Warmest, a little slower to scan.</p>
+        <div class="sheet"><p class="q">Who's coming?</p>
+          <div class="b2 pick" data-mark="under"><button>Just me</button><span class="dot">·</span><button class="on">Two</button><span class="dot">·</span><button>Three</button><span class="dot">·</span><button>Four</button><span class="dot">·</span><button>Five</button><span class="dot">·</span><button>Six</button><span class="dot">·</span><button>More</button></div>
+        </div>
+      </div>
+      <div class="opt">
+        <header><b>B3</b><i>Numeral and dot</i></header>
+        <p class="why">The chosen number turns bold with a small red dot under it. Most minimal, closest to a printed timetable.</p>
+        <div class="sheet"><p class="q">How many of you?</p>
+          <div class="b3 pick"><button>1</button><button class="on">2</button><button>3</button><button>4</button><button>5</button><button>6</button><button>7</button><button>8</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- C: SUMMARY / PROGRESS -->
+  <section class="group">
+    <h2><span>C</span>The summary at the top</h2>
+    <p>Replaces District's "2 guests ▾ · Today ▾ · Dinner ▾" pills. Each answer stays tappable to change it, and the red one is the step you're on.</p>
+    <div class="row">
+      <div class="opt">
+        <header><b>C1</b><i>One sentence</i></header>
+        <p class="why">The booking reads as a line you'd say to the host. Takes one line, no boxes at all.</p>
+        <div class="sheet"><div class="c1 cycle">A table for <button>2</button>, <button class="now">tonight</button>, at <button class="todo">what time?</button></div></div>
+      </div>
+      <div class="opt">
+        <header><b>C2</b><i>Menu leaders</i></header>
+        <p class="why">Rows with dotted leaders, like prices on a menu. Clearest to edit, but takes three lines.</p>
+        <div class="sheet"><div class="c2 cycle">
+          <button><span class="cap">Guests</span><span class="lead"></span><em>Two</em></button>
+          <button class="now"><span class="cap">Date</span><span class="lead"></span><em>Tonight</em></button>
+          <button class="todo"><span class="cap">Time</span><span class="lead"></span><em>pick one</em></button>
+        </div></div>
+      </div>
+      <div class="opt">
+        <header><b>C3</b><i>Ticket header</i></header>
+        <p class="why">Three columns between hairlines, like the top of a printed ticket. A red rule marks the step.</p>
+        <div class="sheet"><div class="c3 cycle">
+          <button><span class="cap">Guests</span><span class="v">2</span></button>
+          <button class="now"><span class="cap">Date</span><span class="v">Tonight</span></button>
+          <button class="todo"><span class="cap">Time</span><span class="v">·</span></button>
+        </div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- D: DATE -->
+  <section class="group">
+    <h2><span>D</span>Pick the date</h2>
+    <p>Two weeks ahead, scrolls sideways. Shares the sheet with the times below it.</p>
+    <div class="row">
+      <div class="opt">
+        <header><b>D1</b><i>Calendar leaf</i></header>
+        <p class="why">Weekday over a big numeral, the chosen day framed in a hairline like a desk calendar page.</p>
+        <div class="sheet"><div class="strip d1 pick">
+          <button class="on"><span class="cap">Tonight</span><span class="n">18</span></button><button><span class="cap">Mon</span><span class="n">19</span></button><button><span class="cap">Tue</span><span class="n">20</span></button><button><span class="cap">Wed</span><span class="n">21</span></button><button><span class="cap">Thu</span><span class="n">22</span></button><button><span class="cap">Fri</span><span class="n">23</span></button><button><span class="cap">Sat</span><span class="n">24</span></button><button><span class="cap">Sun</span><span class="n">25</span></button>
+        </div></div>
+      </div>
+      <div class="opt">
+        <header><b>D2</b><i>Underlined words</i></header>
+        <p class="why">District's tabs, set in Bodoni: Tonight, Tomorrow, then dates. Familiar, nothing to learn.</p>
+        <div class="sheet"><div class="strip d2 pick">
+          <button class="on">Tonight</button><button>Tomorrow</button><button>Tue <small>20</small></button><button>Wed <small>21</small></button><button>Thu <small>22</small></button><button>Fri <small>23</small></button><button>Sat <small>24</small></button>
+        </div></div>
+      </div>
+      <div class="opt">
+        <header><b>D3</b><i>Ink dot</i></header>
+        <p class="why">A row of dates under a red month name. The chosen day is a solid ink circle. Compact.</p>
+        <div class="sheet"><p class="cap" style="color:var(--red);margin-bottom:10px">October</p><div class="strip d3 pick">
+          <button class="on"><span class="w">S</span><span class="n">18</span></button><button><span class="w">M</span><span class="n">19</span></button><button><span class="w">T</span><span class="n">20</span></button><button><span class="w">W</span><span class="n">21</span></button><button><span class="w">T</span><span class="n">22</span></button><button><span class="w">F</span><span class="n">23</span></button><button><span class="w">S</span><span class="n">24</span></button><button><span class="w">S</span><span class="n">25</span></button>
+        </div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- D, round two: around D2 -->
+  <section class="group">
+    <h2><span>D</span>Pick the date, round two</h2>
+    <p>Variations on D2's word tabs: Today, Tomorrow, then days. Tap around; they all scroll sideways.</p>
+    <div class="row">
+      <div class="opt">
+        <header><b>D4</b><i>Two-line tabs</i></header>
+        <p class="why">The word on top, the date under it in small italic, like District's tabs. Nothing to work out.</p>
+        <div class="sheet"><div class="strip dt d4 pick">
+          <button class="on"><span>Today</span><small>Sun 18</small></button><button><span>Tomorrow</span><small>Mon 19</small></button><button><span>Tue</span><small>20 Oct</small></button><button><span>Wed</span><small>21 Oct</small></button><button><span>Thu</span><small>22 Oct</small></button><button><span>Fri</span><small>23 Oct</small></button>
+        </div></div>
+      </div>
+      <div class="opt">
+        <header><b>D5</b><i>Sliding underline</i></header>
+        <p class="why">D2 with one ink line that glides to the day you tap. Same look, more life.</p>
+        <div class="sheet"><div class="strip dt d5 pick slide">
+          <button class="on">Today</button><button>Tomorrow</button><button>Tue <small>20</small></button><button>Wed <small>21</small></button><button>Thu <small>22</small></button><button>Fri <small>23</small></button><i class="bar"></i>
+        </div></div>
+      </div>
+      <div class="opt">
+        <header><b>D6</b><i>Soft pill</i></header>
+        <p class="why">The chosen day sits in a soft tinted pill, matching the rounded button and fields.</p>
+        <div class="sheet"><div class="strip dt d6 pick">
+          <button class="on">Today</button><button>Tomorrow</button><button>Tue <small>20</small></button><button>Wed <small>21</small></button><button>Thu <small>22</small></button><button>Fri <small>23</small></button>
+        </div></div>
+      </div>
+      <div class="opt">
+        <header><b>D7</b><i>Word and dot</i></header>
+        <p class="why">The chosen day turns ink with a small red dot under it, the same mark as B3's guests.</p>
+        <div class="sheet"><div class="strip dt d7 pick">
+          <button class="on">Today</button><button>Tomorrow</button><button>Tue <small>20</small></button><button>Wed <small>21</small></button><button>Thu <small>22</small></button><button>Fri <small>23</small></button>
+        </div></div>
+      </div>
+      <div class="opt">
+        <header><b>D8</b><i>Ticket rail</i></header>
+        <p class="why">Days between hairlines, a red rule under the chosen one, like the C3 summary above it.</p>
+        <div class="sheet"><div class="strip dt d8 pick">
+          <button class="on"><span>Today</span><small>Sun 18</small></button><button><span>Tomorrow</span><small>Mon 19</small></button><button><span>Tue</span><small>20 Oct</small></button><button><span>Wed</span><small>21 Oct</small></button><button><span>Thu</span><small>22 Oct</small></button>
+        </div></div>
+      </div>
+      <div class="opt">
+        <header><b>D9</b><i>Rail, tinted</i></header>
+        <p class="why">D8 with the chosen day also washed in a soft tint, so it reads from across the table.</p>
+        <div class="sheet"><div class="strip dt d8 d9 pick">
+          <button class="on"><span>Today</span><small>Sun 18</small></button><button><span>Tomorrow</span><small>Mon 19</small></button><button><span>Tue</span><small>20 Oct</small></button><button><span>Wed</span><small>21 Oct</small></button><button><span>Thu</span><small>22 Oct</small></button>
+        </div></div>
+      </div>
+      <div class="opt">
+        <header><b>D10</b><i>Rail, inked</i></header>
+        <p class="why">The chosen day is filled with ink and the text turns white. The strongest marker; no red needed.</p>
+        <div class="sheet"><div class="strip dt d8 d10 pick">
+          <button class="on"><span>Today</span><small>Sun 18</small></button><button><span>Tomorrow</span><small>Mon 19</small></button><button><span>Tue</span><small>20 Oct</small></button><button><span>Wed</span><small>21 Oct</small></button><button><span>Thu</span><small>22 Oct</small></button>
+        </div></div>
+      </div>
+      <div class="opt">
+        <header><b>D11</b><i>Rail with availability</i></header>
+        <p class="why">Each day shows how full it is: dots for free tables, "Full" when there's nothing. Saves taps on busy nights.</p>
+        <div class="sheet"><div class="strip dt d8 d11 pick">
+          <button class="on"><span>Today</span><small>Sun 18</small><i class="av">•••</i></button><button><span>Tomorrow</span><small>Mon 19</small><i class="av">••</i></button><button><span>Tue</span><small>20 Oct</small><i class="av full">Full</i></button><button><span>Wed</span><small>21 Oct</small><i class="av">•••</i></button><button><span>Thu</span><small>22 Oct</small><i class="av">•</i></button>
+        </div></div>
+      </div>
+      <div class="opt">
+        <header><b>D12</b><i>Rail, big numerals</i></header>
+        <p class="why">Weekday small on top, the date large below, each in its own cell. Reads like a desk calendar laid flat.</p>
+        <div class="sheet"><div class="strip dt d8 d12 pick">
+          <button class="on"><small>Today</small><span>18</span></button><button><small>Mon</small><span>19</span></button><button><small>Tue</small><span>20</span></button><button><small>Wed</small><span>21</span></button><button><small>Thu</small><span>22</span></button><button><small>Fri</small><span>23</span></button>
+        </div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- E: TIME -->
+  <section class="group">
+    <h2><span>E</span>Pick the time</h2>
+    <p>Only free times show, grouped as Cena (dinner) and Pranzo (lunch). These are the real slots from the system.</p>
+    <div class="row">
+      <div class="opt">
+        <header><b>E1</b><i>Timetable</i></header>
+        <p class="why">Bare numerals in a grid, the chosen one circled in ink. Matches B1.</p>
+        <div class="sheet">
+          <div class="e-head"><span class="cap">Cena</span><span class="lead"></span><em>dinner, 7 to 10 pm</em></div>
+          <div class="e1 pick" data-mark="ring"><button>7:00</button><button>7:30</button><button>8:00</button><button class="on">8:30</button><button>9:00</button><button>9:30</button><button>10:00</button></div>
+        </div>
+      </div>
+      <div class="opt">
+        <header><b>E2</b><i>Menu list</i></header>
+        <p class="why">Each time on its own line with a dotted leader and a red tick. Most traditional, needs a scroll.</p>
+        <div class="sheet"><div class="e2 pick">
+          <button><span class="t">7:30</span><span class="lead"></span><em>dinner</em><svg class="tick" viewBox="0 0 18 14"><path pathLength="1" d="M2 7.5 L7 12 L16 2"/></svg></button>
+          <button><span class="t">8:00</span><span class="lead"></span><em>dinner</em><svg class="tick" viewBox="0 0 18 14"><path pathLength="1" d="M2 7.5 L7 12 L16 2"/></svg></button>
+          <button class="on"><span class="t">8:30</span><span class="lead"></span><em>dinner</em><svg class="tick" viewBox="0 0 18 14"><path pathLength="1" d="M2 7.5 L7 12 L16 2"/></svg></button>
+          <button><span class="t">9:00</span><span class="lead"></span><em>dinner</em><svg class="tick" viewBox="0 0 18 14"><path pathLength="1" d="M2 7.5 L7 12 L16 2"/></svg></button>
+        </div></div>
+      </div>
+      <div class="opt">
+        <header><b>E3</b><i>Hairline cells</i></header>
+        <p class="why">District's grid made finer: hairline cells, the chosen one inked in. Biggest tap targets.</p>
+        <div class="sheet">
+          <div class="e-head"><span class="cap">Cena</span><span class="lead"></span><em>dinner</em></div>
+          <div class="e3 pick"><button>7:00</button><button>7:30</button><button>8:00</button><button class="on">8:30</button><button>9:00</button><button>9:30</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- F: MAIN BUTTON -->
+  <section class="group">
+    <h2><span>F</span>The one main button, round two</h2>
+    <p>Sticky at the bottom of the sheet, faded until there's enough to proceed. All pills now, since you liked the rounded F1. Press them.</p>
+    <div class="row">
+      <div class="opt">
+        <header><b>F1</b><i>Enamel pill</i> <span class="picked">your pick so far</span></header>
+        <p class="why">Tomato red with a fine inset line, like an old enamel shop sign.</p>
+        <div class="sheet f"><button class="btn f1">Proceed to book</button><button class="btn f1 off">Proceed to book</button></div>
+      </div>
+      <div class="opt">
+        <header><b>F4</b><i>Ink pill</i></header>
+        <p class="why">The same pill in petrol ink. Calmer; red stays for the photos and the dots.</p>
+        <div class="sheet f"><button class="btn f4">Proceed to book</button><button class="btn f4 off">Proceed to book</button></div>
+      </div>
+      <div class="opt">
+        <header><b>F5</b><i>Pill with a knob</i></header>
+        <p class="why">Label on the left, a small linen circle with an arrow on the right that nudges forward when pressed.</p>
+        <div class="sheet f"><button class="btn f5"><span>Proceed to book</span><i class="knob">→</i></button><button class="btn f5 off"><span>Proceed to book</span><i class="knob">→</i></button></div>
+      </div>
+      <div class="opt">
+        <header><b>F6</b><i>Outline that fills</i></header>
+        <p class="why">A fine ink outline with red italic; it fills with ink as you press. Quietest until touched.</p>
+        <div class="sheet f"><button class="btn f6">Proceed to book</button><button class="btn f6 off">Proceed to book</button></div>
+      </div>
+      <div class="opt">
+        <header><b>F7</b><i>Pill that recaps</i></header>
+        <p class="why">The pill carries the booking: what you picked on the left, the action on the right. One less line on screen.</p>
+        <div class="sheet f"><button class="btn f7"><span class="recap">2 guests · Today · 8:30 pm</span><span class="act">Book</span></button><button class="btn f7 off"><span class="recap">Pick a time</span><span class="act">Book</span></button></div>
+      </div>
+      <div class="opt">
+        <header><b>F8</b><i>Candlelit</i></header>
+        <p class="why">Red pill with a soft ember glow inside, as if lit from the table. The warmest; a touch more decorative.</p>
+        <div class="sheet f"><button class="btn f8">Proceed to book</button><button class="btn f8 off">Proceed to book</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- G: FIELDS -->
+  <section class="group">
+    <h2><span>G</span>Your details, round two</h2>
+    <p>Same fields (name, phone, optional email), four input styles borrowed from established design systems and drawn in Angel's type and colours. Type in them, they work.</p>
+    <div class="row">
+      <div class="opt">
+        <header><b>G3</b><i>Grouped list</i></header>
+        <p class="why">From Apple's iOS settings lists. Label left, answer right, all in one soft card. Feels native on an iPhone.</p>
+        <div class="sheet g3"><div class="grp">
+          <label class="r"><span>Name</span><input placeholder="Your name"></label>
+          <label class="r"><span>Phone</span><b class="pre">+91</b><input inputmode="tel" placeholder="98765 43210"></label>
+          <label class="r"><span>Email</span><input inputmode="email" placeholder="Optional"></label>
+        </div></div>
+      </div>
+      <div class="opt">
+        <header><b>G4</b><i>Filled</i></header>
+        <p class="why">From Material 3. Tinted boxes with the label inside; the bottom line turns red while you type. Familiar on Android.</p>
+        <div class="sheet g4">
+          <label class="fl"><span class="lb">Name</span><input placeholder="Your name"></label>
+          <label class="fl"><span class="lb">Phone</span><span class="rw"><b class="pre">+91</b><input inputmode="tel" placeholder="98765 43210"></span></label>
+          <label class="fl"><span class="lb">Email (optional)</span><input inputmode="email" placeholder="you@example.com"></label>
+        </div>
+      </div>
+      <div class="opt">
+        <header><b>G5</b><i>Stacked</i></header>
+        <p class="why">From Airbnb's DLS checkout. One outlined block split by hairlines; the field you're in gets a firm ink outline. Most compact.</p>
+        <div class="sheet g5"><div class="stack">
+          <label class="cell"><span class="lb">Name</span><input placeholder="Your name"></label>
+          <label class="cell"><span class="lb">Phone</span><span class="rw"><b class="pre">+91</b><input inputmode="tel" placeholder="98765 43210"></span></label>
+          <label class="cell"><span class="lb">Email <i>optional</i></span><input inputmode="email" placeholder="you@example.com"></label>
+        </div></div>
+      </div>
+      <div class="opt">
+        <header><b>G6</b><i>Soft boxes</i></header>
+        <p class="why">From Uber's Base. Label above, a soft tinted box below, an ink border when focused. Biggest targets; pairs with the pill button.</p>
+        <div class="sheet g6">
+          <label><span class="lb">Name</span><span class="box"><input placeholder="Your name"></span></label>
+          <label><span class="lb">Phone</span><span class="box"><b class="pre">+91</b><input inputmode="tel" placeholder="98765 43210"></span></label>
+          <label><span class="lb">Email <i>optional</i></span><span class="box"><input inputmode="email" placeholder="you@example.com"></span></label>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- I: OTP -->
+  <section class="group">
+    <h2><span>I</span>The code on your phone</h2>
+    <p>The last step, when the switch is on: a 6-digit code by SMS seals the booking. iPhones offer it from Messages, so most people just tap. Type to try.</p>
+    <div class="row">
+      <div class="opt">
+        <header><b>I1</b><i>Ruled digits</i></header>
+        <p class="why">One short line per digit, the next one waiting in red. Feels like filling in a form by hand.</p>
+        <div class="sheet"><p class="q">Sent to +91 98765 43210</p>
+          <label class="otp i1"><input inputmode="numeric" autocomplete="one-time-code" maxlength="6" aria-label="Code"><span></span><span></span><span></span><span></span><span></span><span></span></label>
+          <p class="otp-meta"><a href="#">Change number</a><span>Resend in 0:30</span></p>
+        </div>
+      </div>
+      <div class="opt">
+        <header><b>I2</b><i>One line</i></header>
+        <p class="why">A single ruled line with wide-spaced numerals. Simplest, nothing to aim at.</p>
+        <div class="sheet"><p class="q">Sent to +91 98765 43210</p>
+          <label class="otp i2"><input inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="······" aria-label="Code"></label>
+          <p class="otp-meta"><a href="#">Change number</a><span>Resend in 0:30</span></p>
+        </div>
+      </div>
+      <div class="opt">
+        <header><b>I3</b><i>Ticket punch</i></header>
+        <p class="why">Six small hairline circles, like the holes on a ticket. Each digit lands in one.</p>
+        <div class="sheet"><p class="q">Sent to +91 98765 43210</p>
+          <label class="otp i3"><input inputmode="numeric" autocomplete="one-time-code" maxlength="6" aria-label="Code"><span></span><span></span><span></span><span></span><span></span><span></span></label>
+          <p class="otp-meta"><a href="#">Change number</a><span>Resend in 0:30</span></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- H: CONFIRMATION -->
+  <section class="group">
+    <h2><span>H</span>It's a date</h2>
+    <p>The success screen. It only says "sent on WhatsApp" once the backend really sends one; until then it stays neutral, as shown.</p>
+    <div class="row">
+      <div class="opt">
+        <header><b>H1</b><i>Ticket stub</i></header>
+        <p class="why">Gingham band, details on leaders, a perforated stub with the reference. Screenshot-friendly.</p>
+        <div class="h-wrap"><div class="ticket">
+          <div class="gingham"></div>
+          <div class="body"><span class="cap">Angel and the Searchers</span><p class="big">It's a date.</p>
+            <div class="leaders"><div><span>Guests</span><span class="lead"></span><em>Two</em></div><div><span>Date</span><span class="lead"></span><em>Sat 24 Oct</em></div><div><span>Time</span><span class="lead"></span><em>8:30 pm</em></div></div>
+          </div>
+          <div class="perf"></div>
+          <div class="stub"><span>Ref AS-0824</span><span><i>Directions · Add to calendar</i></span></div>
+        </div></div>
+      </div>
+      <div class="opt">
+        <header><b>H2</b><i>Rubber stamp</i></header>
+        <p class="why">A round red stamp lands on the card. One moment of theatre, then plain details.</p>
+        <div class="h-wrap"><div class="sheet h2card" style="justify-content:flex-start">
+          <svg class="stamp" viewBox="0 0 120 120" aria-hidden="true"><defs><path id="circ" d="M60 60 m-44 0 a44 44 0 1 1 88 0 a44 44 0 1 1 -88 0"/></defs><circle cx="60" cy="60" r="56" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="60" cy="60" r="34" fill="none" stroke="currentColor" stroke-width="1"/><text><textPath href="#circ">PRENOTATO · ANGEL AND THE SEARCHERS ·</textPath></text><text x="60" y="58" text-anchor="middle" style="font-size:15px;letter-spacing:0;font-style:italic;font-weight:400">24</text><text x="60" y="73" text-anchor="middle" style="font-size:8px">OTT</text></svg>
+          <span class="cap">You're booked</span><p class="big" style="margin-top:10px">See you Saturday.</p>
+          <div class="leaders"><div><span>Table for</span><span class="lead"></span><em>Two</em></div><div><span>At</span><span class="lead"></span><em>8:30 pm</em></div><div><span>Where</span><span class="lead"></span><em>Chelon ki Haveli</em></div></div>
+          <div class="links"><a href="#">Directions</a><a href="#">Add to calendar</a></div>
+        </div></div>
+      </div>
+      <div class="opt">
+        <header><b>H3</b><i>A note from Angel</i></header>
+        <p class="why">Reads like a handwritten note, signed in script. Softest, the most personal.</p>
+        <div class="h-wrap"><div class="sheet letter" style="justify-content:flex-start">
+          <span class="cap">Prenotato</span><p class="big" style="margin-top:12px">Booking confirmed.</p>
+          <p>Table for two, Saturday 24 October, 8:30 pm. We'll keep a candle lit for you.</p>
+          <p class="sig">Angel</p>
+          <div class="links"><a href="#">Directions</a><a href="#">Add to calendar</a><a href="#">See the menu</a></div>
+        </div></div>
+      </div>
+    </div>
+    <button class="replay" onclick="document.querySelectorAll('.stamp').forEach(s=>{s.style.animation='none';s.offsetWidth;s.style.animation=''})">Replay the stamp</button>
+  </section>
+</main>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="ring-path" viewBox="0 0 100 60"><path pathLength="1" d="M52 5 C80 3 97 15 96 31 C95 48 73 57 48 56 C21 55 4 45 5 29 C6 14 26 4 60 7"/></symbol>
+</svg>
+<script>
+const ring = () => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('class', 'ring'); s.setAttribute('viewBox', '0 0 100 60'); s.setAttribute('preserveAspectRatio', 'none');
+  s.innerHTML = '<path pathLength="1" d="M52 5 C80 3 97 15 96 31 C95 48 73 57 48 56 C21 55 4 45 5 29 C6 14 26 4 60 7"/>'; return s; };
+const under = () => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('class', 'under'); s.setAttribute('viewBox', '0 0 100 8'); s.setAttribute('preserveAspectRatio', 'none');
+  s.innerHTML = '<path pathLength="1" d="M2 5 C25 2 50 7 75 3 S95 4 98 4"/>'; return s; };
+function mark(btn, kind) { btn.parentElement.querySelectorAll('.ring,.under').forEach(n => n.remove()); if (kind === 'ring') btn.append(ring()); if (kind === 'under') btn.append(under()); }
+document.querySelectorAll('.pick').forEach(group => {
+  const kind = group.dataset.mark; const on = group.querySelector('.on'); if (on) mark(on, kind);
+  group.addEventListener('click', e => { const b = e.target.closest('button'); if (!b || !group.contains(b)) return;
+    group.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); mark(b, kind);
+    b.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'smooth' }); });
+});
+// D5: one underline that glides to the chosen day
+document.querySelectorAll('.slide').forEach(strip => { const bar = strip.querySelector('.bar');
+  const place = () => { const on = strip.querySelector('button.on'); if (!on) return; bar.style.width = on.offsetWidth + 'px'; bar.style.transform = 'translateX(' + on.offsetLeft + 'px)'; };
+  strip.addEventListener('click', () => requestAnimationFrame(place)); place(); });
+// OTP: one real input (so SMS autofill works), digits painted into the boxes
+document.querySelectorAll('.otp').forEach(o => { const inp = o.querySelector('input'), spans = o.querySelectorAll('span');
+  const paint = () => { inp.value = inp.value.replace(/\D/g, '').slice(0, 6); const v = inp.value;
+    spans.forEach((s, i) => { s.textContent = v[i] || ''; s.classList.toggle('full', !!v[i]); s.classList.toggle('cur', i === v.length); }); };
+  inp.addEventListener('input', paint); paint(); });
+// Summary rows: tap a step to make it the current one
+document.querySelectorAll('.cycle').forEach(g => g.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
+  g.querySelectorAll('button').forEach(x => x.classList.toggle('now', x === b)); }));
+</script>
+</body>
+</html>

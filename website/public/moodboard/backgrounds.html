@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Page Backgrounds</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Schibsted+Grotesk:wght@400..700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: oklch(96% 0.008 82);
+  --ink: oklch(30% 0.05 228);
+  --ink-2: oklch(30% 0.05 228 / .66);
+  --rule: oklch(30% 0.05 228 / .14);
+  --red: oklch(50% 0.19 25);
+}
+* { box-sizing: border-box; margin: 0; }
+body { background: var(--paper); color: var(--ink); font: 400 16px/1.55 "Schibsted Grotesk", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+.page { max-width: 1240px; margin: 0 auto; padding: 56px 24px 120px; }
+h1 { font: 400 clamp(36px, 5vw, 56px)/1.05 "Young Serif", Georgia, serif; letter-spacing: -0.015em; }
+.lede { max-width: 64ch; margin-top: 14px; color: var(--ink-2); }
+.lede b { color: var(--ink); font-weight: 600; }
+.opt { margin-top: 64px; padding-top: 26px; border-top: 1px solid var(--rule); }
+.opt header { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; align-items: baseline; }
+.opt header b { font: 400 30px/1 "Young Serif", Georgia, serif; color: var(--red); grid-row: span 2; }
+.opt header h2 { font: 600 19px/1.2 "Schibsted Grotesk", sans-serif; }
+.opt header p { color: var(--ink-2); max-width: 74ch; }
+.opt header a { color: var(--ink); font-weight: 600; }
+.frames { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; margin-top: 22px; }
+figure { display: grid; gap: 8px; }
+figcaption { font-size: 13px; color: var(--ink-2); }
+.scaler { position: relative; overflow: hidden; border-radius: 12px; background: #fdfcf9; box-shadow: 0 0 0 1px var(--rule), 0 30px 60px -36px oklch(20% 0.03 55 / .45); }
+.desk .scaler { width: 760px; height: 475px; }
+.desk iframe { width: 1440px; height: 900px; transform: scale(0.5278); }
+/* the left margin at full size, where the texture lives */
+.near .scaler { width: 340px; height: 475px; }
+.near iframe { width: 1440px; height: 900px; }
+iframe { position: absolute; top: 0; left: 0; border: 0; transform-origin: 0 0; pointer-events: none; }
+@media (max-width: 1160px) {
+  .desk .scaler { width: 576px; height: 360px; }
+  .desk iframe { transform: scale(0.4); }
+  .near .scaler { height: 360px; }
+}
+</style>
+</head>
+<body>
+<main class="page">
+  <h1>Light in the margins</h1>
+  <p class="lede">Six ways to warm the empty sides of the page, each taken from the room itself: the candles, the haveli's lime plaster and old brick, the gingham, the arches, the photos' own glow. The centre stays clean and white. Each shows the page at a glance and <b>the left margin at full size</b>, where the texture actually lives. Switch them live on <a href="/experiment" target="_blank">/experiment</a> under Options, Background.</p>
+
+  <section class="opt">
+    <header><b>W1</b><h2>Candlelight</h2><p>Two warm pools of light just off the page, breathing slowly like candles. No texture, only light. The quietest. <a href="/experiment?bg=w1" target="_blank">Open</a></p></header>
+    <div class="frames">
+      <figure class="desk"><div class="scaler"><iframe src="/experiment?bg=w1&amp;embed=1" title="W1 at a glance" loading="lazy"></iframe></div><figcaption>The page</figcaption></figure>
+      <figure class="near"><div class="scaler"><iframe src="/experiment?bg=w1&amp;embed=1" title="W1 margin, full size" loading="lazy"></iframe></div><figcaption>Left margin, full size</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="opt">
+    <header><b>W2</b><h2>Limewash</h2><p>The haveli's chuna plaster: soft cream clouds in the margins, a paper grain, the candle glow on top. Like the walls under the arches. <a href="/experiment?bg=w2" target="_blank">Open</a></p></header>
+    <div class="frames">
+      <figure class="desk"><div class="scaler"><iframe src="/experiment?bg=w2&amp;embed=1" title="W2 at a glance" loading="lazy"></iframe></div><figcaption>The page</figcaption></figure>
+      <figure class="near"><div class="scaler"><iframe src="/experiment?bg=w2&amp;embed=1" title="W2 margin, full size" loading="lazy"></iframe></div><figcaption>Left margin, full size</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="opt">
+    <header><b>W3</b><h2>Whitewashed brick</h2><p>The old brick walls, traced in faint mortar lines and half hidden under limewash, so they show through in patches. <a href="/experiment?bg=w3" target="_blank">Open</a></p></header>
+    <div class="frames">
+      <figure class="desk"><div class="scaler"><iframe src="/experiment?bg=w3&amp;embed=1" title="W3 at a glance" loading="lazy"></iframe></div><figcaption>The page</figcaption></figure>
+      <figure class="near"><div class="scaler"><iframe src="/experiment?bg=w3&amp;embed=1" title="W3 margin, full size" loading="lazy"></iframe></div><figcaption>Left margin, full size</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="opt">
+    <header><b>W4</b><h2>Gingham</h2><p>The tablecloths: a whisper of red check at the edges, fading to white before it reaches the words. The most playful. <a href="/experiment?bg=w4" target="_blank">Open</a></p></header>
+    <div class="frames">
+      <figure class="desk"><div class="scaler"><iframe src="/experiment?bg=w4&amp;embed=1" title="W4 at a glance" loading="lazy"></iframe></div><figcaption>The page</figcaption></figure>
+      <figure class="near"><div class="scaler"><iframe src="/experiment?bg=w4&amp;embed=1" title="W4 margin, full size" loading="lazy"></iframe></div><figcaption>Left margin, full size</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="opt">
+    <header><b>W5</b><h2>Arches</h2><p>The courtyard's colonnade drawn in hairline down both sides, with a candle glowing low in each arch. The most architectural. <a href="/experiment?bg=w5" target="_blank">Open</a></p></header>
+    <div class="frames">
+      <figure class="desk"><div class="scaler"><iframe src="/experiment?bg=w5&amp;embed=1" title="W5 at a glance" loading="lazy"></iframe></div><figcaption>The page</figcaption></figure>
+      <figure class="near"><div class="scaler"><iframe src="/experiment?bg=w5&amp;embed=1" title="W5 margin, full size" loading="lazy"></iframe></div><figcaption>Left margin, full size</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="opt">
+    <header><b>W6</b><h2>Photo spill</h2><p>The photos' own candlelight, blurred into a soft amber haze that bleeds into the margins, as if the pictures were glowing. <a href="/experiment?bg=w6" target="_blank">Open</a></p></header>
+    <div class="frames">
+      <figure class="desk"><div class="scaler"><iframe src="/experiment?bg=w6&amp;embed=1" title="W6 at a glance" loading="lazy"></iframe></div><figcaption>The page</figcaption></figure>
+      <figure class="near"><div class="scaler"><iframe src="/experiment?bg=w6&amp;embed=1" title="W6 margin, full size" loading="lazy"></iframe></div><figcaption>Left margin, full size</figcaption></figure>
+    </div>
+  </section>
+</main>
+</body>
+</html>
