@@ -4,7 +4,7 @@ import { checkRateLimit } from "@/lib/reservations/rateLimit";
 import { RATE_LIMITS } from "@/lib/reservations/limits";
 import { normalizePhoneForRateLimit } from "@/lib/reservations/phone";
 import { isTurnstileEnforced, verifyTurnstile } from "@/lib/reservations/turnstile";
-import { claimIdempotencyKey, completeIdempotencyKey } from "@/lib/reservations/idempotency";
+import { claimIdempotencyKey, completeIdempotencyKey, releaseIdempotencyKey } from "@/lib/reservations/idempotency";
 import { randomToken, sha256Hex } from "@/lib/reservations/hash";
 import { mapDatabaseError } from "@/lib/reservations/apiErrors";
 
@@ -145,9 +145,15 @@ export async function POST(request: Request) {
     );
   }
 
-  // claim.state === "claimed": process fresh, then store the outcome
-  // (success or error alike) so a genuine retry replays it verbatim.
+  // claim.state === "claimed": process fresh. Final outcomes (2xx, and 4xx
+  // business/validation errors) are stored so a genuine retry replays them
+  // verbatim. Transient failures (5xx, 429) release the claim instead, so
+  // the retry is processed fresh rather than replaying the failure for 24h.
   const result = await handleCreate(request, rawBody);
-  await completeIdempotencyKey(supabase, idempotencyKey, result.status, result.body);
+  if (result.status >= 500 || result.status === 429) {
+    await releaseIdempotencyKey(supabase, idempotencyKey);
+  } else {
+    await completeIdempotencyKey(supabase, idempotencyKey, result.status, result.body);
+  }
   return Response.json(result.body, { status: result.status });
 }

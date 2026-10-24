@@ -25,6 +25,13 @@ export async function claimIdempotencyKey(supabase: SupabaseClient, key: string,
   return { state: result.state as "claimed" | "in_progress" | "conflict" };
 }
 
+// Drop an in-progress claim without storing a result, so a retry is processed
+// fresh. Used for transient failures (5xx, 429) that must not be replayed.
+export async function releaseIdempotencyKey(supabase: SupabaseClient, key: string): Promise<void> {
+  const { error } = await supabase.rpc("release_idempotency_key", { p_key: key });
+  if (error) console.error("Idempotency key release failed:", error.message);
+}
+
 export async function completeIdempotencyKey(supabase: SupabaseClient, key: string, statusCode: number, response: unknown): Promise<void> {
   const { error } = await supabase.rpc("complete_idempotency_key", { p_key: key, p_status_code: statusCode, p_response: response });
   if (error) console.error("Idempotency key completion failed:", error.message);
