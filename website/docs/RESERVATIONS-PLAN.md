@@ -22,8 +22,9 @@ and for EazyDiner bookings. Background and current design are in `RESERVATIONS.m
 ### Live database snapshot (linked project, migrations 001–013 all applied)
 
 - Angels has two services: **Lunch 12:00–15:30** and **Dinner 19:00–23:59**, both with a 30-minute slot interval, 90-minute seating and a 15-minute buffer, for parties of 1–12.
-- Floor plan: 16 tables (T1–T16), **all set to `max_capacity = 2`**. Several are long rectangles that probably seat more.
-  ⇒ **Parties of 3 or more get no availability online right now.** This must be fixed (correct the capacities and add combinations) before launch.
+- Floor plan: 16 tables (T1–T16). Capacities were all 2 until the owner sent real numbers.
+  **Fixed 2026-10** via `supabase/data-fixes/2026-10_angels_table_capacities.sql`.
+  Parties of 1–6 now get slots online; 7+ need combinations (P3.2, prioritised).
 - The last bookable slots are **13:30 (lunch)** and **22:00 (dinner)**, because seating plus buffer must finish before closing time. Confirm that's what the restaurant wants; dinner could use `00:00` close (overnight services are supported) or a separate "last seating" setting (P0 policy).
 - No date overrides (closures or special hours) have been entered.
 
@@ -96,7 +97,17 @@ completing, no-show) without touching the database; every change shows up in `re
 
 ## Phase P3: Smarter table allocation
 
-In order:
+**Angels requirements (from the owner, 2026-10):**
+
+| Requirement | Detail |
+|---|---|
+| Combinations | **T1+T2 joined: 8–14**, **T6+T11 joined: 7–9** |
+| Online vs staff max | T4, T5, T6, T11 are "4/5": max 4 online, 5 allowed when staff seat them. Needs `staff_max_capacity` (stored as 4 for now). `assign_reservation_tables` must use the staff max. |
+| Splittable tables | T8, T9 seat 3–4 whole, or split into halves T8a/T8b/T9a/T9b of 1–2 each. Model them as "variants" of one physical table, so only one layout can be booked at a time. Booked whole for now. |
+| Retired | T15 becomes a wine store (hidden, zone "Wine store") |
+| Unconfirmed | T13 isn't on the owner's list; set to 2–4 as a twin of T12. Confirm with the owner. |
+
+In order (**combinations are prioritised: build them straight after P1**):
 1. **Covers per slot** (from the policy) in both availability and booking.
 2. **Table combinations:** a `restaurant_table_combinations` table (e.g. T6+T7, with min/max
    capacity), managed in the floor plan editor. Booking prefers the best-fitting single table,
@@ -170,8 +181,8 @@ In order:
 
 ## Suggested order
 
-`P0 → P1` (launch-ready backend and contract for the UI) → `P2` (staff operations) →
-`P3.1–3.2` (covers and combinations) → public soft launch → `P4` (email now,
+`P0 → P1` (launch-ready backend and contract for the UI) → `P3.2 combinations + staff max`
+(Angels needs 7–14 online) → `P2` (staff operations) → `P3.1` (covers) → public soft launch → `P4` (email now,
 WhatsApp when approved) → `P5` → remaining P3.
 
 Business actions (WhatsApp number, Meta verification, LiveTable trial, table
