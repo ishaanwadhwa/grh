@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import NewBookingPanel from "@/components/admin/NewBookingPanel";
 
 interface TableOption {
   id: string;
@@ -58,6 +59,7 @@ export default function AdminReservationsPage() {
   const [cancelTarget, setCancelTarget] = useState<ReservationRow | null>(null);
   const [savingId, setSavingId] = useState("");
   const [notice, setNotice] = useState("");
+  const [newBookingOpen, setNewBookingOpen] = useState(false);
 
   const load = useCallback(async () => {
     let query = supabase
@@ -158,14 +160,23 @@ export default function AdminReservationsPage() {
           <h1 className="font-display text-2xl text-text">Reservations</h1>
           <p className="mt-1 text-sm text-text/40">{reservations.length} reservations · assign tables below</p>
         </div>
-        <div className="flex flex-wrap gap-1 border border-border-subtle p-0.5">
-          {["all", "confirmed", "pending", "cancelled"].map((status) => (
-            <button key={status} onClick={() => { setLoading(true); setFilter(status); }} className={`min-h-10 px-3 text-xs capitalize ${filter === status ? "bg-text text-white" : "text-text/50"}`}>
-              {status}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-3">
+          <button onClick={() => setNewBookingOpen(true)} className="min-h-10 rounded bg-accent px-4 text-xs font-medium uppercase tracking-wide text-white">+ New booking</button>
+          <div className="flex flex-wrap gap-1 border border-border-subtle p-0.5">
+            {["all", "confirmed", "pending", "cancelled"].map((status) => (
+              <button key={status} onClick={() => { setLoading(true); setFilter(status); }} className={`min-h-10 px-3 text-xs capitalize ${filter === status ? "bg-text text-white" : "text-text/50"}`}>
+                {status}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
+
+      <NewBookingPanel
+        open={newBookingOpen}
+        onClose={() => setNewBookingOpen(false)}
+        onCreated={() => void load()}
+      />
 
       {notice && <p className="mb-4 rounded border border-border-subtle bg-white p-3 text-sm text-text/60" role="status">{notice}</p>}
 

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
+import NewBookingPanel from "@/components/admin/NewBookingPanel";
 
 const DEFAULT_WIDTH = 1000;
 const DEFAULT_HEIGHT = 1400;
@@ -116,6 +117,7 @@ export default function WaiterServicePage() {
   const [now, setNow] = useState(0);
   const [mapFullScreen, setMapFullScreen] = useState(false);
   const [showBookingQueue, setShowBookingQueue] = useState(true);
+  const [newBookingOpen, setNewBookingOpen] = useState(false);
   const [walkinOpen, setWalkinOpen] = useState(false);
   const [walkinName, setWalkinName] = useState("");
   const [walkinPhone, setWalkinPhone] = useState("");
@@ -415,6 +417,7 @@ export default function WaiterServicePage() {
             <h1 className="mt-1 font-display text-3xl text-primary">Floor service</h1>
           </div>
           <div className="flex flex-wrap gap-2 self-start">
+            <button type="button" onClick={() => setNewBookingOpen(true)} disabled={!restaurantId || services.length === 0} className="min-h-10 rounded border border-accent-gold/60 bg-white px-4 text-xs font-medium uppercase tracking-wide text-primary disabled:opacity-40">+ New booking</button>
             <button type="button" onClick={openWalkinForm} disabled={!restaurantId || services.length === 0} className="min-h-10 rounded bg-accent px-4 text-xs font-medium uppercase tracking-wide text-white disabled:opacity-40">+ Walk-in</button>
             <button type="button" onClick={refresh} disabled={loading} className="min-h-10 rounded border border-border-subtle bg-white px-4 text-xs text-primary disabled:opacity-50">{loading ? "Refreshing…" : "Refresh board"}</button>
           </div>
@@ -691,6 +694,15 @@ export default function WaiterServicePage() {
               </div>}
         </section>
       </div>
+
+      <NewBookingPanel
+        open={newBookingOpen}
+        onClose={() => setNewBookingOpen(false)}
+        onCreated={refresh}
+        defaultRestaurantId={restaurantId}
+        defaultServiceId={serviceFilter || undefined}
+        defaultDate={serviceDate}
+      />
 
       {walkinOpen && (
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-primary-dark/55 p-2 sm:items-center sm:p-4">
