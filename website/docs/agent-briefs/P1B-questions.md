@@ -197,3 +197,20 @@ default until the UI ships the widget), the same request should succeed regardle
    (rather than `create_restaurant_reservation`) runs against real production policy data,
    so confirm a normal booking still comes back `confirmed` with a table, not unexpectedly
    `pending`.
+
+---
+
+## Reviewer notes (P1B review and go-live, 2026-10-26)
+
+- **Accepted** all 10 commits. `024` diffs cleanly: only the lock call and the three P1A carry-overs. Deviations §1–§6 accepted.
+- **Security fix `497beed` / `031`:** `api_rate_limits` and `api_idempotency_keys` had no RLS, and Supabase grants anon access to new
+  tables by default. With the public key, anyone could read stored replays, including raw `manageToken`s (so they could view, cancel or modify
+  other guests' bookings), and delete rate-limit counters. Both are now RLS-on and service_role-only. Test `022` fails if **any** public table lacks RLS.
+- **Fixed:** idempotency cached 5xx/429 for 24h. Those now release the claim (`release_idempotency_key`).
+- **Fixed `0958a89`:** the route required an email before the booking policy could apply. Email is now optional at the route, and
+  `CONTACT_REQUIRED` enforces the policy. Angels is set to phone required, email optional (`supabase/data-fixes/2026-10_angels_contact_policy.sql`).
+- **HTTP QA (§7, done by the reviewer via Node fetch on a local stack):** create, manage GET/modify/cancel, cancel-again 422, bogus token 404,
+  idempotent replay (same id) and key reuse 409, rate limit 429 on the 6th request, and anon RPC/table access rejected. All passed.
+- **Merged with `wave-1.0`** (`63f1fb4`). The P1B pending review was ported into the redesigned admin, and his `040` was renumbered to `032`.
+- **Production:** `024`–`032` were dry-run in a transaction that rolled back, then applied; `main` pushed. Verified privileges, RLS, the Angels policy and slots.
+- **Still to do by a human:** click through the redesigned admin while logged in (WAVE-1.0 merge checklist step 5, plus the Requests flow).
