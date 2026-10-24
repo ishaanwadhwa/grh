@@ -3,7 +3,8 @@
 How restaurant table booking works today, what is missing before it is safe to
 open to the public, and how third-party channels (EazyDiner) will plug in.
 
-**Last updated:** 2026-10 (reflects migrations `001`–`013`, all applied remotely)
+**Last updated:** 2026-10 (reflects migrations `001`–`013`, all applied remotely, plus the
+schema added by Phase P0, migrations `014`–`018`, applied locally only until reviewed)
 
 Implementation plan: `RESERVATIONS-PLAN.md`.
 
@@ -37,11 +38,14 @@ write through `create_restaurant_reservation`.
 
 | Table | Purpose |
 |---|---|
-| `restaurant_services` | A bookable service (e.g. Dinner): slot interval, seating duration, buffer, min/max party size. |
+| `restaurant_services` | A bookable service (e.g. Dinner): slot interval, seating duration, buffer, min/max party size, and (`015`) a per-slot covers cap `max_covers_per_slot` (NULL = unlimited, not yet enforced). |
 | `restaurant_service_hours` | Weekly opening hours per service. Close < open means the service runs past midnight (`005`). |
 | `restaurant_service_date_overrides` | Closures or special hours on a specific date. |
+| `restaurant_booking_policies` (`015`) | One row per restaurant: `auto_confirm`, `require_phone`/`require_email`, `large_party_threshold`, `min_lead_minutes`, `max_advance_days`, `last_seating_offset_minutes`, `online_holdback_pct`, `cancellation_cutoff_minutes`, `reminder_offsets_minutes`. Schema only — not yet read by any RPC (P1). Defaults reproduce today's behaviour. |
+| `guests` (`016`) | One row per distinct phone number (`normalize_phone_e164`), with name, email, notes, tags, `visit_count`/`no_show_count`, `whatsapp_opt_in`. Linked from `reservations.guest_id`; upserted by `create_restaurant_reservation`/`create_walkin_reservation`. Phone-less reservations (most walk-ins) have `guest_id = NULL`. |
+| `reservation_events` (`017`) | Append-only history per reservation: `event_type` (`created`, `status_changed`, `tables_assigned`, `updated`), `from_status`/`to_status`, `actor_id`/`actor_source`, `payload`. Written only by triggers; nobody can insert directly, not even admins. |
 | `restaurant_floorplans` / `restaurant_tables` | One active floor plan per restaurant. Tables have `min_capacity`/`max_capacity`, a zone, and `is_active` (bookable vs draft). |
-| `reservations` | The booking. `source` (`website`, `walkin`, …) and `external_reference` hold the channel and the partner's booking ID. Unique on `(source, external_reference)`. |
+| `reservations` | The booking. `status` and `source` (`website`, `phone`, `walk_in`, `eazydiner`, `other`) are `CHECK`-constrained (`014`). `external_reference` holds the partner's booking ID; unique on `(source, external_reference)`. `guest_id` (`016`) links to `guests`. `manage_token_hash`, `needs_attention`/`attention_reason` (`018`) are schema-only placeholders for the guest manage link and EazyDiner conflict flag (P1/P5). |
 | `reservation_table_assignments` | Which table(s) a reservation holds and for how long. A **gist exclusion constraint** prevents two active assignments from overlapping on the same table. |
 
 ### Reservation lifecycle

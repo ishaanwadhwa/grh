@@ -32,28 +32,39 @@ and for EazyDiner bookings. Background and current design are in `RESERVATIONS.m
 
 ## Phase P0: Foundations and API contract (unblocks the UI)
 
+**Status: done**, pending review and the reviewer applying migrations `014`–`018` to the
+remote database (see `docs/agent-briefs/P0-questions.md` for the commit list and what
+the reviewer needs to do). Implemented against the agent brief `docs/agent-briefs/P0-foundations.md`.
+
 **Tasks**
-1. **Restaurant setup fixes (data, not code):** set real table capacities and confirm closing / last-seating times with the restaurant.
-2. **API contract** (`docs/RESERVATIONS-API.md` plus shared TS types in `src/lib/reservations/types.ts`):
+1. ✅ **Restaurant setup fixes (data, not code):** real table capacities and `is_active`
+   set from the owner's list (`supabase/data-fixes/2026-10_angels_table_capacities.sql`,
+   applied directly, not a migration). Closing/last-seating times not yet reconfirmed with
+   the restaurant — still open, tracked in `docs/agent-briefs/P0-questions.md`.
+2. ✅ **API contract** (`docs/RESERVATIONS-API.md` plus shared TS types in `src/lib/reservations/types.ts`):
    - `GET  /api/reservations/availability?restaurant&date&partySize` → slots (unchanged shape, plus an optional `requiresApproval` flag)
    - `POST /api/reservations` → `{ id, status: confirmed|pending, manageToken }`; accepts an `Idempotency-Key` header
    - `GET  /api/reservations/manage/[token]` → booking summary (no internal data)
    - `POST /api/reservations/manage/[token]/cancel`
    - `POST /api/reservations/manage/[token]/modify` (date/time/party; re-runs the availability check)
    - A standard error format: `{ error: { code, message } }` with stable codes (`SLOT_UNAVAILABLE`, `POLICY_VIOLATION`, `RATE_LIMITED`, …)
-3. **Booking policy table** `restaurant_booking_policies` (one row per restaurant, managed in admin):
+3. ✅ **Booking policy table** `restaurant_booking_policies` (one row per restaurant, managed in admin):
    `auto_confirm`, `require_phone`, `require_email`, `large_party_threshold`
    (larger parties become `pending` requests), `min_lead_minutes`, `max_advance_days`,
    `last_seating_offset_minutes`, `max_covers_per_slot` (per service), `online_holdback_pct`,
    `cancellation_cutoff_minutes`, `reminder_offsets` (e.g. 24h, 3h).
-4. **Schema hardening**
-   - `CHECK` constraints on `reservations.status` (`pending, confirmed, arrived, seated, completed, cancelled, no_show`) and `source` (`website, phone, walk_in, eazydiner, other`). Fix the `walk_in`/`walkin` mismatch in TS.
-   - `guests` table (unique by normalised phone, with email, name, notes, tags, visit/no-show counts, `whatsapp_opt_in`), linked from `reservations.guest_id`.
-   - `reservation_events` change history (who, when, from → to, payload), written by a trigger.
+   Schema only — not read by any RPC yet, so online behaviour is unchanged; wiring it in is P1.
+4. ✅ **Schema hardening**
+   - `CHECK` constraints on `reservations.status` (`pending, confirmed, arrived, seated, completed, cancelled, no_show`) and `source` (`website, phone, walk_in, eazydiner, other`). The one legacy `walkin` row is normalised to `walk_in` before the constraint is added; no occurrences of either mismatch remain in TS.
+   - `guests` table (unique by normalised phone, with email, name, notes, tags, visit/no-show counts, `whatsapp_opt_in`), linked from `reservations.guest_id`. `create_restaurant_reservation`/`create_walkin_reservation` upsert the guest with unchanged signatures/return types.
+   - `reservation_events` change history (who, when, from → to, payload), written by a trigger; nobody can insert directly.
    - `manage_token_hash` on reservations (store only the hash; the raw token goes in the guest message).
-   - A conflict flag/column for imported bookings that couldn't get a table.
+   - A conflict flag/column (`needs_attention`, `attention_reason`) for imported bookings that couldn't get a table.
 
-**Done when:** the contract doc and types are merged and shared with the UI dev; migrations apply cleanly on a local Supabase; parties of 3–12 get slots once Angels' tables are fixed.
+**Done when:** the contract doc and types are merged and shared with the UI dev ✅; migrations apply
+cleanly on a local Supabase ✅ (`supabase db reset`; pgTAP suite in `supabase/tests/`, 24/24 passing);
+parties of 3–12 get slots once Angels' tables are fixed — capacities were fixed (task 1) but availability
+output hasn't been re-verified against them since; worth a quick manual check before P1.
 
 ---
 
