@@ -10,10 +10,12 @@ SELECT ok(NOT has_function_privilege('authenticated', 'public.upsert_guest(text,
 SELECT ok(NOT has_function_privilege('anon', 'public.log_reservation_update_event()', 'EXECUTE'),
   'anon cannot execute trigger functions');
 
-SELECT ok(has_function_privilege('anon', 'public.get_available_restaurant_slots(text,date,integer)', 'EXECUTE'),
-  'anon can still check availability');
-SELECT ok(has_function_privilege('anon', 'public.create_restaurant_reservation(text,uuid,date,time,integer,text,text,text,text,boolean,text)', 'EXECUTE'),
-  'anon can still book (locked down to the API route in P1)');
+-- Locked down to service_role only since 025 (P1B task 2); see
+-- 016_public_rpcs_service_role.sql for the full before/after coverage.
+SELECT ok(NOT has_function_privilege('anon', 'public.get_available_restaurant_slots(text,date,integer)', 'EXECUTE'),
+  'anon can no longer check availability directly (service_role only, P1B)');
+SELECT ok(NOT has_function_privilege('anon', 'public.create_restaurant_reservation(text,uuid,date,time,integer,text,text,text,text,boolean,text)', 'EXECUTE'),
+  'anon can no longer book directly (service_role only, P1B)');
 
 -- Booking still links a guest (upsert_guest runs inside the SECURITY DEFINER RPC).
 SET LOCAL ROLE anon;

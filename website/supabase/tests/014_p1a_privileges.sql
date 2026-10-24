@@ -24,8 +24,10 @@ SELECT ok(has_function_privilege('authenticated', 'public.create_staff_reservati
 SELECT ok(NOT has_function_privilege('anon', 'public.set_reservation_tables(uuid,uuid[],boolean)', 'EXECUTE'), 'anon cannot execute set_reservation_tables');
 SELECT ok(has_function_privilege('authenticated', 'public.set_reservation_tables(uuid,uuid[],boolean)', 'EXECUTE'), 'authenticated can execute set_reservation_tables');
 
--- Public booking RPCs (022) keep their existing anon grant.
-SELECT ok(has_function_privilege('anon', 'public.create_restaurant_reservation(text,uuid,date,time,integer,text,text,text,text,boolean,text)', 'EXECUTE'), 'anon still can execute create_restaurant_reservation');
+-- Public booking RPCs (022) kept the anon grant inherited from 004 at the
+-- time P1A was written; P1B's 025 revokes it (service_role only) -- see
+-- 016_public_rpcs_service_role.sql.
+SELECT ok(NOT has_function_privilege('anon', 'public.create_restaurant_reservation(text,uuid,date,time,integer,text,text,text,text,boolean,text)', 'EXECUTE'), 'anon no longer executes create_restaurant_reservation since P1B');
 
 SELECT * FROM finish();
 ROLLBACK;

@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createServiceClient } from "@/lib/supabase/service";
 
 export async function POST(request: Request) {
   let body: Record<string, unknown>;
@@ -26,13 +26,13 @@ export async function POST(request: Request) {
     return Response.json({ error: "Please check the reservation details and try again." }, { status: 400 });
   }
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) {
+  let supabase: ReturnType<typeof createServiceClient>;
+  try {
+    supabase = createServiceClient();
+  } catch {
     return Response.json({ error: "Reservation service is not configured." }, { status: 503 });
   }
 
-  const supabase = createClient(url, key);
   const { data: reservationId, error } = await supabase.rpc("create_restaurant_reservation", {
     p_restaurant_slug: restaurantSlug,
     p_service_id: serviceId,

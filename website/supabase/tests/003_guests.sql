@@ -42,9 +42,12 @@ SELECT public.create_restaurant_reservation('test-resto-003', '30000000-0000-000
 
 -- Walk-in with no phone at all: guest_id must stay NULL.
 SELECT set_config('request.jwt.claims', json_build_object('sub', '30000000-0000-0000-0000-00000000000a')::text, true);
+-- "Today" per the restaurant's own timezone, not the session's -- avoids a
+-- false WALKIN_TIME_INVALID when the test runs close to midnight IST while
+-- the server session is still on the previous UTC calendar day.
 SELECT public.create_walkin_reservation(
   '30000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000003',
-  CURRENT_DATE, '15:00', 2, ARRAY['30000000-0000-0000-0000-000000000006']::uuid[],
+  (NOW() AT TIME ZONE 'Asia/Kolkata')::DATE, '15:00', 2, ARRAY['30000000-0000-0000-0000-000000000006']::uuid[],
   'Walk-in Party', '', '+91'
 );
 
