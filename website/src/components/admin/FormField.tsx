@@ -1,60 +1,29 @@
+// DLS input: label above in Caption, underlined field, brand underline on focus.
+
 interface FormFieldProps {
   label: string;
   required?: boolean;
   hint?: string;
+  error?: string;
+  /** For anything that isn't one input (uploaders, steppers, pills): a <div>, so a click on it never
+   *  "clicks the label" and fires the first button inside (that's how a photo got removed). */
+  group?: boolean;
   children: React.ReactNode;
 }
 
-export function FormField({ label, required, hint, children }: FormFieldProps) {
+export function FormField({ label, required, hint, error, group, children }: FormFieldProps) {
+  const Tag = group ? "div" : "label";
   return (
-    <div>
-      <label className="block text-xs uppercase tracking-widest text-text/50 font-medium mb-2">
-        {label} {required && <span className="text-accent">*</span>}
-      </label>
+    <Tag className="field">
+      <span className={`field-label ${group ? "mb-2" : ""}`}>{label}{required && <span className="req"> *</span>}</span>
       {children}
-      {hint && <p className="mt-1 text-xs text-text/30">{hint}</p>}
-    </div>
+      {error ? <span className="hint error">{error}</span> : hint && <span className="hint">{hint}</span>}
+    </Tag>
   );
 }
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  className?: string;
-}
+export const AdminInput = ({ className = "", ...props }: React.ComponentProps<"input">) => <input {...props} className={`input ${className}`} />;
 
-export function AdminInput({ className = "", ...props }: InputProps) {
-  return (
-    <input
-      {...props}
-      className={`w-full border border-border-subtle bg-white px-4 py-2.5 text-sm text-text placeholder:text-text/25 focus:outline-none focus:border-accent-gold/50 transition-colors ${className}`}
-    />
-  );
-}
+export const AdminTextarea = ({ className = "", ...props }: React.ComponentProps<"textarea">) => <textarea {...props} className={`input ${className}`} />;
 
-interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-  className?: string;
-}
-
-export function AdminTextarea({ className = "", ...props }: TextareaProps) {
-  return (
-    <textarea
-      {...props}
-      className={`w-full border border-border-subtle bg-white px-4 py-2.5 text-sm text-text placeholder:text-text/25 focus:outline-none focus:border-accent-gold/50 transition-colors resize-none ${className}`}
-    />
-  );
-}
-
-interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
-  className?: string;
-  children: React.ReactNode;
-}
-
-export function AdminSelect({ className = "", children, ...props }: SelectProps) {
-  return (
-    <select
-      {...props}
-      className={`w-full border border-border-subtle bg-white px-4 py-2.5 text-sm text-text focus:outline-none focus:border-accent-gold/50 transition-colors appearance-none ${className}`}
-    >
-      {children}
-    </select>
-  );
-}
+export const AdminSelect = ({ className = "", ...props }: React.ComponentProps<"select">) => <select {...props} className={`input ${className}`} />;

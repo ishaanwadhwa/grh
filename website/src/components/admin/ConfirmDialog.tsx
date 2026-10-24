@@ -1,5 +1,7 @@
 "use client";
 
+import { Sheet } from "./ui";
+
 interface ConfirmDialogProps {
   open: boolean;
   title: string;
@@ -9,6 +11,7 @@ interface ConfirmDialogProps {
   onCancel: () => void;
 }
 
+// DLS destructive confirm: centred title, neutral (ink) primary, an outlined way back. Never a red fill.
 export default function ConfirmDialog({
   open,
   title,
@@ -17,28 +20,16 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div className="bg-white border border-border-subtle shadow-deep w-full max-w-sm mx-4 p-6">
-        <h3 className="text-sm font-medium text-text">{title}</h3>
-        <p className="mt-2 text-sm text-text/50">{message}</p>
-        <div className="mt-6 flex gap-3 justify-end">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 text-xs uppercase tracking-widest text-text/50 hover:text-text transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            className="px-4 py-2 text-xs uppercase tracking-widest bg-accent text-white hover:bg-accent-hover transition-colors"
-          >
-            {confirmLabel}
-          </button>
-        </div>
+    <Sheet open={open} onClose={onCancel} labelledBy="confirm-title">
+      <div className="pt-6 text-center">
+        <h2 id="confirm-title" className="t-h3">{title}</h2>
+        <p className="t-sub mx-auto mt-2 max-w-[36ch]">{message}</p>
       </div>
-    </div>
+      <div className="mt-8 grid grid-cols-2 gap-3">
+        <button type="button" onClick={onCancel} className="btn btn-secondary">Go back</button>
+        <button type="button" onClick={onConfirm} className="btn btn-ink">{confirmLabel}</button>
+      </div>
+    </Sheet>
   );
 }
