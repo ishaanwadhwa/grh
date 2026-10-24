@@ -1,0 +1,1044 @@
+diff --git a/website/src/app/admin/reservations/page.tsx b/website/src/app/admin/reservations/page.tsx
+index 35fd557..a61f198 100644
+--- a/website/src/app/admin/reservations/page.tsx
++++ b/website/src/app/admin/reservations/page.tsx
+@@ -19,10 +19,11 @@ interface ReservationRow {
+   starts_at: string | null;
+   ends_at: string | null;
+   guest_name: string;
+-  guest_email: string;
++  guest_email: string | null;
+   guest_phone: string;
+   guest_phone_code: string;
+   is_whatsapp: boolean;
++  phone_verified: boolean | null;
+   date: string;
+   time: string;
+   party_size: number;
+@@ -181,8 +182,9 @@ export default function AdminReservationsPage() {
+                   <div className="flex items-start justify-between gap-3">
+                     <div className="min-w-0">
+                       <h2 className="truncate font-medium text-text">{reservation.guest_name}</h2>
+-                      <p className="mt-1 break-all text-xs text-text/50">{reservation.guest_email}</p>
++                      {reservation.guest_email && <p className="mt-1 break-all text-xs text-text/50">{reservation.guest_email}</p>}
+                       {reservation.guest_phone && <p className="mt-1 text-xs text-text/40">{reservation.guest_phone_code} {reservation.guest_phone}{reservation.is_whatsapp ? " · WhatsApp" : ""}</p>}
++                      {reservation.phone_verified === false && <p className="mt-1 text-[10px] uppercase tracking-wider text-amber-800">Unverified · confirm on WhatsApp</p>}
+                     </div>
+                     <span className={`shrink-0 rounded px-2 py-1 text-[10px] uppercase tracking-wider ${STATUS_COLORS[reservation.status] || "bg-background text-text/40"}`}>{reservation.status}</span>
+                   </div>
+diff --git a/website/src/app/admin/restaurants/[id]/page.tsx b/website/src/app/admin/restaurants/[id]/page.tsx
+index 9ce8844..0e54b28 100644
+--- a/website/src/app/admin/restaurants/[id]/page.tsx
++++ b/website/src/app/admin/restaurants/[id]/page.tsx
+@@ -6,6 +6,7 @@ import Link from "next/link";
+ import { createBrowserClient } from "@supabase/ssr";
+ import { FormField, AdminInput, AdminTextarea, AdminSelect } from "@/components/admin/FormField";
+ import ImageUploader from "@/components/admin/ImageUploader";
++import PdfUploader from "@/components/admin/PdfUploader";
+ 
+ interface RestaurantForm {
+   name: string;
+@@ -18,6 +19,7 @@ interface RestaurantForm {
+   timezone: string;
+   instagram_url: string;
+   images: string[];
++  menu_pdf_url: string;
+   is_active: boolean;
+   featured: boolean;
+ }
+@@ -29,7 +31,7 @@ export default function AdminRestaurantEditPage() {
+ 
+   const [form, setForm] = useState<RestaurantForm>({
+     name: "", slug: "", property_id: "", cuisine: "", description: "",
+-    vibe: "", hours: "", timezone: "Asia/Kolkata", instagram_url: "", images: [], is_active: true, featured: false,
++    vibe: "", hours: "", timezone: "Asia/Kolkata", instagram_url: "", images: [], menu_pdf_url: "", is_active: true, featured: false,
+   });
+   const [properties, setProperties] = useState<{ id: string; name: string }[]>([]);
+   const [loading, setLoading] = useState(!isNew);
+@@ -52,7 +54,7 @@ export default function AdminRestaurantEditPage() {
+           setForm({
+             name: data.name, slug: data.slug, property_id: data.property_id,
+             cuisine: data.cuisine, description: data.description, vibe: data.vibe,
+-            hours: data.hours, timezone: data.timezone || "Asia/Kolkata", instagram_url: data.instagram_url || "", images: data.images || [], is_active: data.is_active, featured: data.featured ?? false,
++            hours: data.hours, timezone: data.timezone || "Asia/Kolkata", instagram_url: data.instagram_url || "", images: data.images || [], menu_pdf_url: data.menu_pdf_url || "", is_active: data.is_active, featured: data.featured ?? false,
+           });
+         }
+         setLoading(false);
+@@ -67,7 +69,7 @@ export default function AdminRestaurantEditPage() {
+ 
+   const handleSave = async () => {
+     setSaving(true);
+-    const payload = { ...form };
++    const payload = { ...form, menu_pdf_url: form.menu_pdf_url || null };
+ 
+     if (isNew) {
+       const { data, error } = await supabase.from("restaurants").insert(payload).select().single();
+@@ -157,6 +159,15 @@ export default function AdminRestaurantEditPage() {
+           />
+         </FormField>
+ 
++        <FormField label="Menu (PDF)" hint="Opens when guests tap “See menu”. Hidden on the site when empty. Press Save after changing.">
++          <PdfUploader
++            bucket="restaurant-menus"
++            folder={form.slug || "restaurant"}
++            url={form.menu_pdf_url}
++            onUrlChange={(url) => set("menu_pdf_url", url)}
++          />
++        </FormField>
++
+         <div className="flex flex-col gap-3">
+           <label className="flex items-center gap-2 cursor-pointer" onClick={() => set("is_active", !form.is_active)}>
+             <div className={`w-4 h-4 border flex items-center justify-center transition-all ${form.is_active ? "border-accent-gold bg-accent-gold" : "border-border-subtle"}`}>
+diff --git a/website/src/app/admin/service/page.tsx b/website/src/app/admin/service/page.tsx
+index cdead32..38b2bb0 100644
+--- a/website/src/app/admin/service/page.tsx
++++ b/website/src/app/admin/service/page.tsx
+@@ -39,7 +39,7 @@ interface ServiceReservation {
+   restaurant_id: string;
+   service_id: string | null;
+   guest_name: string;
+-  guest_email: string;
++  guest_email: string | null;
+   guest_phone: string;
+   guest_phone_code: string;
+   date: string;
+@@ -49,6 +49,7 @@ interface ServiceReservation {
+   seated_at: string | null;
+   source: string;
+   special_requests: string | null;
++  phone_verified: boolean | null;
+ }
+ interface Assignment { reservation_id: string; table_id: string; }
+ interface MapPanGesture { pointerId: number; startX: number; startY: number; originX: number; originY: number; }
+@@ -178,7 +179,7 @@ export default function WaiterServicePage() {
+         : Promise.resolve({ data: [], error: null }),
+       (() => {
+         let query = supabase.from("reservations")
+-          .select("id, restaurant_id, service_id, guest_name, guest_email, guest_phone, guest_phone_code, date, time, party_size, status, seated_at, source, special_requests")
++          .select("id, restaurant_id, service_id, guest_name, guest_email, guest_phone, guest_phone_code, date, time, party_size, status, seated_at, source, special_requests, phone_verified")
+           .eq("restaurant_id", restaurantId)
+           .eq("date", serviceDate)
+           .not("status", "in", "(cancelled,completed,no_show)")
+@@ -658,6 +659,7 @@ export default function WaiterServicePage() {
+                             <span className="font-display text-xl text-primary">{reservation.time}</span>
+                             <span className={`rounded-full border px-2 py-0.5 text-[9px] uppercase tracking-wide ${STATUS_STYLE[reservation.status] || "border-border-subtle bg-background text-text/50"}`}>{reservation.status.replaceAll("_", " ")}</span>
+                             {!assigned.length && <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[9px] uppercase tracking-wide text-accent">Needs table</span>}
++                            {reservation.phone_verified === false && <span title="Booked without a phone code. Confirm on WhatsApp." className="rounded-full bg-amber-50 px-2 py-0.5 text-[9px] uppercase tracking-wide text-amber-800">Unverified</span>}
+                           </div>
+                           <p className="mt-1 truncate text-sm font-medium text-text">{reservation.guest_name} · {reservation.party_size} {reservation.party_size === 1 ? "guest" : "guests"}</p>
+                           <p className="mt-1 truncate text-xs text-text/45">{reservation.guest_phone ? `${reservation.guest_phone_code} ${reservation.guest_phone}` : reservation.guest_email}</p>
+diff --git b/website/src/app/api/otp/send/route.ts b/website/src/app/api/otp/send/route.ts
+new file mode 100644
+index 0000000..bf6d3c5
+--- /dev/null
++++ b/website/src/app/api/otp/send/route.ts
+@@ -0,0 +1,65 @@
++import { createClient } from "@supabase/supabase-js";
++import { after } from "next/server";
++import { OTP, otpEnabled, normalizePhone, newCode, hashCode, sendDecision, type Channel } from "@/lib/otp";
++import { sendWhatsAppTemplate, sendSmsFlow } from "@/lib/msg91";
++
++const fail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}) =>
++  Response.json({ error, code, ...extra }, { status });
++
++export async function POST(request: Request) {
++  if (!otpEnabled()) return fail(404, "OTP_DISABLED", "Phone verification is turned off.");
++
++  const body = await request.json().catch(() => null);
++  const phoneCode = typeof body?.phoneCode === "string" ? body.phoneCode : "+91";
++  const phone = normalizePhone(phoneCode, typeof body?.phone === "string" ? body.phone : "");
++  const channel: Channel = body?.channel === "sms" ? "sms" : "whatsapp";
++  if (!phone) return fail(400, "INVALID_PHONE", "Please enter a valid mobile number.");
++  if (channel === "sms" && phoneCode !== "+91") return fail(400, "SMS_UNAVAILABLE", "SMS codes are only available for Indian numbers.");
++
++  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
++  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
++  const secret = process.env.OTP_TOKEN_SECRET;
++  if (!url || !key || !secret) return fail(503, "SERVER_ERROR", "Phone verification is not configured.");
++  const supabase = createClient(url, key);
++
++  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "";
++  const now = Date.now();
++  const since = new Date(now - OTP.ipWindowSec * 1000).toISOString(); // the longest window
++  const [byPhone, byIp] = await Promise.all([
++    supabase.from("phone_verifications").select("created_at").eq("phone", phone).gte("created_at", since),
++    supabase.from("phone_verifications").select("created_at").eq("ip", ip).gte("created_at", since),
++  ]);
++  if (byPhone.error || byIp.error) return fail(500, "SERVER_ERROR", "Could not send a code. Please try again.");
++
++  const times = (rows: { created_at: string }[]) => rows.map((row) => Date.parse(row.created_at));
++  // Requests without an IP header share the '' bucket, so they still face the IP limit.
++  const decision = sendDecision(times(byPhone.data), times(byIp.data), now);
++  if (!decision.ok) {
++    const error = decision.code === "OTP_COOLDOWN"
++      ? "Please wait a moment before asking for another code."
++      : "Too many codes requested. Please try again later.";
++    return fail(429, decision.code, error, { retryAfter: decision.retryAfter });
++  }
++
++  const code = newCode();
++  const { data: row, error } = await supabase
++    .from("phone_verifications")
++    .insert({ phone, ip, channel, code_hash: hashCode(phone, code, secret) })
++    .select("id")
++    .single();
++  if (error || !row) return fail(500, "SERVER_ERROR", "Could not send a code. Please try again.");
++
++  const sent = channel === "whatsapp"
++    ? await sendWhatsAppTemplate(phone, process.env.MSG91_WA_OTP_TEMPLATE, [code], code)
++    : await sendSmsFlow(phone, process.env.MSG91_SMS_OTP_FLOW_ID, { otp: code });
++  if (!sent) {
++    await supabase.from("phone_verifications").delete().eq("id", row.id); // a failed send shouldn't use up the guest's limit
++    return fail(502, "OTP_SEND_FAILED", "We couldn't send the code. Please try again.");
++  }
++
++  // ponytail: purge on send; move to a Vercel cron if this table ever gets busy.
++  after(async () => {
++    await supabase.from("phone_verifications").delete().lt("created_at", new Date(now - 86_400_000).toISOString());
++  });
++  return Response.json({ sent: true, channel, resendIn: OTP.cooldownSec, expiresIn: OTP.codeTtlSec });
++}
+diff --git b/website/src/app/api/otp/verify/route.ts b/website/src/app/api/otp/verify/route.ts
+new file mode 100644
+index 0000000..adf71a4
+--- /dev/null
++++ b/website/src/app/api/otp/verify/route.ts
+@@ -0,0 +1,67 @@
++import { createClient } from "@supabase/supabase-js";
++import { OTP, otpEnabled, normalizePhone, hashCode, verifyDecision, signToken, type Channel } from "@/lib/otp";
++
++const fail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}) =>
++  Response.json({ error, code, ...extra }, { status });
++
++const MESSAGES = {
++  OTP_WRONG: "That code isn't right.",
++  OTP_EXPIRED: "That code has expired. Please ask for a new one.",
++  OTP_TOO_MANY_ATTEMPTS: "Too many tries. Please ask for a new code.",
++} as const;
++
++export async function POST(request: Request) {
++  if (!otpEnabled()) return fail(404, "OTP_DISABLED", "Phone verification is turned off.");
++
++  const body = await request.json().catch(() => null);
++  const phoneCode = typeof body?.phoneCode === "string" ? body.phoneCode : "+91";
++  const phone = normalizePhone(phoneCode, typeof body?.phone === "string" ? body.phone : "");
++  const code = typeof body?.code === "string" ? body.code.trim() : "";
++  if (!phone) return fail(400, "INVALID_PHONE", "Please enter a valid mobile number.");
++
++  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
++  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
++  const secret = process.env.OTP_TOKEN_SECRET;
++  if (!url || !key || !secret) return fail(503, "SERVER_ERROR", "Phone verification is not configured.");
++  const supabase = createClient(url, key);
++  const codeHash = hashCode(phone, code, secret);
++
++  // Each guess claims an attempt with a compare-and-set on `attempts`, so parallel guesses
++  // can't exceed the limit; a guess that loses the race is re-read and re-checked.
++  for (let round = 0; round < 3; round++) {
++    const now = Date.now();
++    const { data: row, error } = await supabase
++      .from("phone_verifications")
++      .select("id, channel, code_hash, attempts, consumed_at, created_at")
++      .eq("phone", phone)
++      .order("created_at", { ascending: false })
++      .limit(1)
++      .maybeSingle();
++    if (error) return fail(500, "SERVER_ERROR", "Could not check the code. Please try again.");
++
++    const decision = verifyDecision(
++      row && { codeHash: row.code_hash, createdAt: Date.parse(row.created_at), attempts: row.attempts, consumed: !!row.consumed_at },
++      codeHash,
++      now,
++    );
++    if (!decision.ok && !decision.wrongGuess) return fail(decision.code === "OTP_EXPIRED" ? 400 : 429, decision.code, MESSAGES[decision.code]);
++
++    const { data: claimed, error: claimError } = await supabase
++      .from("phone_verifications")
++      .update(decision.ok ? { attempts: row!.attempts + 1, consumed_at: new Date(now).toISOString() } : { attempts: row!.attempts + 1 })
++      .eq("id", row!.id)
++      .eq("attempts", row!.attempts)
++      .is("consumed_at", null)
++      .select("id");
++    if (claimError) return fail(500, "SERVER_ERROR", "Could not check the code. Please try again.");
++    if (!claimed.length) continue;
++
++    if (decision.ok) {
++      return Response.json({ token: signToken(phone, row!.channel as Channel, now, secret), expiresIn: OTP.tokenTtlSec });
++    }
++    return decision.code === "OTP_WRONG"
++      ? fail(400, "OTP_WRONG", MESSAGES.OTP_WRONG, { attemptsLeft: decision.attemptsLeft })
++      : fail(429, "OTP_TOO_MANY_ATTEMPTS", MESSAGES.OTP_TOO_MANY_ATTEMPTS);
++  }
++  return fail(429, "OTP_TOO_MANY_ATTEMPTS", MESSAGES.OTP_TOO_MANY_ATTEMPTS);
++}
+diff --git a/website/src/app/api/reservations/route.ts b/website/src/app/api/reservations/route.ts
+index 0ffedff..e5e9ace 100644
+--- a/website/src/app/api/reservations/route.ts
++++ b/website/src/app/api/reservations/route.ts
+@@ -1,11 +1,15 @@
+ import { createClient } from "@supabase/supabase-js";
++import { otpEnabled, normalizePhone, readToken, bookingCheck, confirmationChannel, type Channel } from "@/lib/otp";
++import { sendWhatsAppTemplate, sendSmsFlow } from "@/lib/msg91";
++
++const fail = (status: number, code: string, error: string) => Response.json({ error, code }, { status });
+ 
+ export async function POST(request: Request) {
+   let body: Record<string, unknown>;
+   try {
+     body = await request.json();
+   } catch {
+-    return Response.json({ error: "Invalid request body." }, { status: 400 });
++    return fail(400, "INVALID_RESERVATION", "Invalid request body.");
+   }
+ 
+   const restaurantSlug = typeof body.restaurantSlug === "string" ? body.restaurantSlug.trim() : "";
+@@ -15,21 +19,37 @@ export async function POST(request: Request) {
+   const partySize = Number(body.partySize);
+   const guestName = typeof body.guestName === "string" ? body.guestName.trim() : "";
+   const guestEmail = typeof body.guestEmail === "string" ? body.guestEmail.trim() : "";
++  const guestPhone = typeof body.guestPhone === "string" ? body.guestPhone.trim() : "";
++  const guestPhoneCode = typeof body.guestPhoneCode === "string" ? body.guestPhoneCode : "+91";
++  const otpToken = typeof body.otpToken === "string" ? body.otpToken : "";
++  const phone = normalizePhone(guestPhoneCode, guestPhone); // null when missing or malformed
+ 
++  // Email is optional, but every booking needs a way to reach the guest.
+   if (
+     !restaurantSlug || !serviceId || !/^\d{4}-\d{2}-\d{2}$/.test(date)
+     || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)
+     || !Number.isInteger(partySize) || partySize < 1 || partySize > 50
+     || !guestName || guestName.length > 120
+-    || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)
++    || (guestEmail !== "" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail))
++    || !/^\+\d{1,4}$/.test(guestPhoneCode)
++    || (!guestEmail && !phone)
+   ) {
+-    return Response.json({ error: "Please check the reservation details and try again." }, { status: 400 });
++    return fail(400, "INVALID_RESERVATION", "Please check the reservation details and try again.");
+   }
+ 
++  // With OTP on, a +91 guest needs a valid code token; other numbers may book unverified (staff confirm).
++  const secret = process.env.OTP_TOKEN_SECRET ?? "";
++  const token = otpToken && phone && secret ? readToken(otpToken, phone, Date.now(), secret) : null;
++  const check = bookingCheck(otpEnabled(), guestPhoneCode, otpToken !== "", token);
++  if (!check.ok) return fail(401, "OTP_REQUIRED", "Please verify your phone number.");
++  // The new flow doesn't ask: assume WhatsApp unless the guest said no (old forms) or could only verify by SMS.
++  const onWhatsApp = body.isWhatsApp !== false && check.verifiedVia !== "sms";
++
+   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
++  // Server-only key: since migration 014 the booking function can't be called with the public anon key.
++  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+   if (!url || !key) {
+-    return Response.json({ error: "Reservation service is not configured." }, { status: 503 });
++    return fail(503, "SERVER_ERROR", "Reservation service is not configured.");
+   }
+ 
+   const supabase = createClient(url, key);
+@@ -41,25 +61,45 @@ export async function POST(request: Request) {
+     p_party_size: partySize,
+     p_guest_name: guestName,
+     p_guest_email: guestEmail,
+-    p_guest_phone: typeof body.guestPhone === "string" ? body.guestPhone.trim() : "",
+-    p_guest_phone_code: typeof body.guestPhoneCode === "string" ? body.guestPhoneCode : "+91",
+-    p_is_whatsapp: body.isWhatsApp === true,
++    p_guest_phone: guestPhone,
++    p_guest_phone_code: guestPhoneCode,
++    p_is_whatsapp: onWhatsApp,
+     p_special_requests: typeof body.specialRequests === "string" ? body.specialRequests.trim() : null,
++    p_phone_verified: check.phoneVerified,
+   });
+ 
+   if (error) {
+     if (error.message.includes("SLOT_UNAVAILABLE")) {
+-      return Response.json({ error: "That time was just booked. Please choose another available time." }, { status: 409 });
++      return fail(409, "SLOT_TAKEN", "That time was just booked. Please choose another available time.");
+     }
+     if (error.message.includes("RESTAURANT_NOT_FOUND")) {
+-      return Response.json({ error: "Restaurant not found." }, { status: 404 });
++      return fail(404, "RESTAURANT_NOT_FOUND", "Restaurant not found.");
+     }
+     if (error.message.includes("INVALID_RESERVATION")) {
+-      return Response.json({ error: "Please check the reservation details and try again." }, { status: 400 });
++      return fail(400, "INVALID_RESERVATION", "Please check the reservation details and try again.");
+     }
+     console.error("Reservation creation failed:", error.message);
+-    return Response.json({ error: "Could not complete the reservation. Please try again." }, { status: 500 });
++    return fail(500, "SERVER_ERROR", "Could not complete the reservation. Please try again.");
++  }
++
++  // Confirmation on WhatsApp or SMS. It never fails the booking; `notified` says what actually went out.
++  let notified: Channel | null = null;
++  const channel = phone ? confirmationChannel(guestPhoneCode, onWhatsApp, check.verifiedVia) : null;
++  if (phone && channel) {
++    const { data: restaurant } = await supabase.from("restaurants").select("name").eq("slug", restaurantSlug).maybeSingle();
++    const at = new Date(`${date}T${time}:00Z`);
++    const when = `${at.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })}, `
++      + at.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" }); // "Sat 24 Oct, 8:30 PM"
++    // Template variables, in order: {{1}} name, {{2}} restaurant, {{3}} when, {{4}} guests.
++    const values = { name: guestName, restaurant: restaurant?.name ?? "", when, guests: String(partySize) };
++    const sent = channel === "whatsapp"
++      ? await sendWhatsAppTemplate(phone, process.env.MSG91_WA_BOOKING_TEMPLATE, Object.values(values))
++      : await sendSmsFlow(phone, process.env.MSG91_SMS_BOOKING_FLOW_ID, values);
++    if (sent) notified = channel;
+   }
+ 
+-  return Response.json({ reservation: { id: reservationId } }, { status: 201 });
++  return Response.json(
++    { reservation: { id: reservationId }, notified, phoneVerified: check.phoneVerified === true },
++    { status: 201 },
++  );
+ }
+diff --git b/website/src/components/admin/PdfUploader.tsx b/website/src/components/admin/PdfUploader.tsx
+new file mode 100644
+index 0000000..de973f3
+--- /dev/null
++++ b/website/src/components/admin/PdfUploader.tsx
+@@ -0,0 +1,81 @@
++"use client";
++
++import { useState, useRef } from "react";
++import { createBrowserClient } from "@supabase/ssr";
++
++const MAX_BYTES = 10 * 1024 * 1024; // matches the bucket limit (migration 015)
++
++interface PdfUploaderProps {
++  bucket: string;
++  folder: string;
++  url: string;
++  onUrlChange: (url: string) => void;
++}
++
++// ponytail: replaced or removed PDFs stay in storage, so the live link never breaks before
++// the admin presses Save. Clean up old files if storage ever matters.
++export default function PdfUploader({ bucket, folder, url, onUrlChange }: PdfUploaderProps) {
++  const [uploading, setUploading] = useState(false);
++  const [error, setError] = useState("");
++  const inputRef = useRef<HTMLInputElement>(null);
++
++  const supabase = createBrowserClient(
++    process.env.NEXT_PUBLIC_SUPABASE_URL!,
++    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
++  );
++
++  const handleUpload = async (file: File | undefined) => {
++    if (inputRef.current) inputRef.current.value = "";
++    if (!file) return;
++    if (file.type !== "application/pdf" || file.size > MAX_BYTES) {
++      setError("Please choose a PDF up to 10 MB.");
++      return;
++    }
++    setUploading(true);
++    setError("");
++
++    const fileName = `${folder}/${Date.now()}-menu.pdf`;
++    const { error: uploadError } = await supabase.storage.from(bucket).upload(fileName, file, {
++      upsert: true,
++      contentType: "application/pdf",
++    });
++
++    if (uploadError) {
++      setError("Upload failed. Please try again.");
++    } else {
++      onUrlChange(supabase.storage.from(bucket).getPublicUrl(fileName).data.publicUrl);
++    }
++    setUploading(false);
++  };
++
++  return (
++    <div className="flex flex-wrap items-center gap-3">
++      {url && (
++        <>
++          <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-text/70 underline">
++            View current menu
++          </a>
++          <button type="button" onClick={() => onUrlChange("")} className="text-xs text-accent">
++            Remove
++          </button>
++        </>
++      )}
++      <button
++        type="button"
++        onClick={() => inputRef.current?.click()}
++        disabled={uploading}
++        className="border border-dashed border-border-subtle px-6 py-4 text-xs text-text/40 hover:text-text/60 hover:border-accent-gold/40 transition-colors disabled:opacity-40 w-full text-center"
++      >
++        {uploading ? "Uploading..." : url ? "Replace menu PDF" : "+ Upload menu PDF"}
++      </button>
++      <input
++        ref={inputRef}
++        type="file"
++        accept="application/pdf"
++        onChange={(e) => handleUpload(e.target.files?.[0])}
++        className="hidden"
++      />
++      {error && <p className="w-full text-xs text-accent">{error}</p>}
++    </div>
++  );
++}
+diff --git a/website/src/lib/data/schema.ts b/website/src/lib/data/schema.ts
+index 5f0ca00..1d3bd26 100644
+--- a/website/src/lib/data/schema.ts
++++ b/website/src/lib/data/schema.ts
+@@ -57,6 +57,7 @@ export interface Restaurant {
+   hours: string;
+   images: string[];
+   instagramUrl?: string | null;
++  menuPdfUrl?: string | null;
+ }
+ 
+ // --- Booking ---
+diff --git b/website/src/lib/msg91.ts b/website/src/lib/msg91.ts
+new file mode 100644
+index 0000000..833cc39
+--- /dev/null
++++ b/website/src/lib/msg91.ts
+@@ -0,0 +1,66 @@
++// MSG91 senders. Each resolves true only when MSG91 accepted the message; false when not configured,
++// on any error, or after the timeout, so callers never fail a booking because a message failed.
++const WHATSAPP_URL = "https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/";
++const SMS_FLOW_URL = "https://control.msg91.com/api/v5/flow";
++const TIMEOUT_MS = 4000;
++
++/**
++ * Approved WhatsApp template. bodyValues fill {{1}}, {{2}}… in order; `button` fills an
++ * authentication template's copy-code button (Meta requires the code in both places).
++ */
++export async function sendWhatsAppTemplate(
++  to: string,
++  template: string | undefined,
++  bodyValues: string[],
++  button?: string,
++): Promise<boolean> {
++  const key = process.env.MSG91_AUTH_KEY;
++  const from = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER;
++  const namespace = process.env.MSG91_WA_NAMESPACE;
++  if (!key || !from || !namespace || !template) return false;
++
++  const components: Record<string, { type: "text"; value: string; subtype?: "url" }> = {};
++  bodyValues.forEach((value, i) => (components[`body_${i + 1}`] = { type: "text", value }));
++  if (button) components.button_1 = { subtype: "url", type: "text", value: button };
++
++  return post(WHATSAPP_URL, key, {
++    integrated_number: from,
++    content_type: "template",
++    payload: {
++      messaging_product: "whatsapp",
++      type: "template",
++      template: {
++        name: template,
++        language: { code: process.env.MSG91_WA_LANGUAGE || "en", policy: "deterministic" },
++        namespace,
++        to_and_components: [{ to: [to], components }],
++      },
++    },
++  });
++}
++
++/** DLT-approved SMS flow. `vars` keys must match the flow's ##variables##. India only. */
++export async function sendSmsFlow(to: string, flowId: string | undefined, vars: Record<string, string>): Promise<boolean> {
++  const key = process.env.MSG91_AUTH_KEY;
++  if (!key || !flowId) return false;
++  return post(SMS_FLOW_URL, key, { template_id: flowId, short_url: "0", recipients: [{ mobiles: to, ...vars }] });
++}
++
++async function post(url: string, key: string, body: unknown): Promise<boolean> {
++  try {
++    const res = await fetch(url, {
++      method: "POST",
++      headers: { authkey: key, "content-type": "application/json", accept: "application/json" },
++      body: JSON.stringify(body),
++      signal: AbortSignal.timeout(TIMEOUT_MS),
++    });
++    const data = await res.json().catch(() => ({}));
++    // MSG91 can answer HTTP 200 with an error body.
++    const ok = res.ok && data?.type !== "error" && data?.status !== "fail" && data?.hasError !== true;
++    if (!ok) console.error("MSG91 send failed:", res.status, data?.message ?? data?.errors ?? "");
++    return ok;
++  } catch (error) {
++    console.error("MSG91 send failed:", error instanceof Error ? error.name : error);
++    return false;
++  }
++}
+diff --git b/website/src/lib/otp.test.ts b/website/src/lib/otp.test.ts
+new file mode 100644
+index 0000000..af8eb71
+--- /dev/null
++++ b/website/src/lib/otp.test.ts
+@@ -0,0 +1,114 @@
++// Run from website/:
++//   npx tsc --module commonjs --target es2022 --types node --esModuleInterop --skipLibCheck --outDir /tmp/otp-test src/lib/otp.ts src/lib/msg91.ts src/lib/otp.test.ts && node --test /tmp/otp-test/
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import {
++  OTP, normalizePhone, newCode, hashCode, sendDecision, verifyDecision,
++  signToken, readToken, bookingCheck, confirmationChannel,
++} from "./otp";
++import { sendWhatsAppTemplate, sendSmsFlow } from "./msg91";
++
++const SECRET = "test-secret";
++const NOW = 1_800_000_000_000;
++const sec = (n: number) => n * 1000;
++
++test("phone numbers", () => {
++  assert.equal(normalizePhone("+91", "98765 43210"), "919876543210");
++  assert.equal(normalizePhone("+91", "58765 43210"), null); // Indian mobiles start 6–9
++  assert.equal(normalizePhone("+91", "987654321"), null);
++  assert.equal(normalizePhone("+44", "7911-123456"), "447911123456");
++  assert.equal(normalizePhone("44", "7911123456"), null);
++  assert.equal(normalizePhone("+44", "12345"), null);
++});
++
++test("codes and hashes", () => {
++  for (let i = 0; i < 50; i++) assert.match(newCode(), /^\d{6}$/);
++  assert.equal(hashCode("91x", "123456", SECRET), hashCode("91x", "123456", SECRET));
++  assert.notEqual(hashCode("91x", "123456", SECRET), hashCode("91x", "123456", "other"));
++});
++
++test("send limits", () => {
++  assert.deepEqual(sendDecision([], [], NOW), { ok: true });
++  assert.deepEqual(sendDecision([NOW - sec(10)], [], NOW), { ok: false, code: "OTP_COOLDOWN", retryAfter: 20 });
++  const three = [NOW - sec(800), NOW - sec(400), NOW - sec(60)];
++  assert.deepEqual(sendDecision(three, [], NOW), { ok: false, code: "OTP_SEND_LIMIT", retryAfter: 100 });
++  assert.deepEqual(sendDecision([NOW - sec(901), ...three.slice(1)], [], NOW), { ok: true });
++  const ten = Array.from({ length: 10 }, (_, i) => NOW - sec(3000 - i * 60));
++  assert.deepEqual(sendDecision([], ten, NOW), { ok: false, code: "OTP_SEND_LIMIT", retryAfter: 600 });
++});
++
++test("code checks", () => {
++  const right = hashCode("91x", "123456", SECRET);
++  const wrong = hashCode("91x", "000000", SECRET);
++  const row = { codeHash: right, createdAt: NOW - sec(60), attempts: 0, consumed: false };
++  assert.deepEqual(verifyDecision(row, right, NOW), { ok: true });
++  assert.deepEqual(verifyDecision(row, wrong, NOW), { ok: false, code: "OTP_WRONG", attemptsLeft: 4, wrongGuess: true });
++  assert.deepEqual(verifyDecision({ ...row, attempts: 4 }, wrong, NOW), { ok: false, code: "OTP_TOO_MANY_ATTEMPTS", wrongGuess: true });
++  assert.deepEqual(verifyDecision({ ...row, attempts: 5 }, right, NOW), { ok: false, code: "OTP_TOO_MANY_ATTEMPTS", wrongGuess: false });
++  assert.deepEqual(verifyDecision({ ...row, createdAt: NOW - sec(OTP.codeTtlSec + 1) }, right, NOW), { ok: false, code: "OTP_EXPIRED", wrongGuess: false });
++  assert.deepEqual(verifyDecision({ ...row, consumed: true }, right, NOW), { ok: false, code: "OTP_EXPIRED", wrongGuess: false });
++  assert.deepEqual(verifyDecision(null, right, NOW), { ok: false, code: "OTP_EXPIRED", wrongGuess: false });
++});
++
++test("tokens", () => {
++  const token = signToken("919876543210", "sms", NOW, SECRET);
++  assert.deepEqual(readToken(token, "919876543210", NOW + sec(60), SECRET), { channel: "sms" });
++  assert.equal(readToken(token, "919999999999", NOW, SECRET), null); // other phone
++  assert.equal(readToken(token, "919876543210", NOW + sec(OTP.tokenTtlSec + 1), SECRET), null); // expired
++  assert.equal(readToken(token, "919876543210", NOW, "other"), null); // other secret
++  assert.equal(readToken(token.replace(".sms.", ".whatsapp."), "919876543210", NOW, SECRET), null); // tampered
++  assert.equal(readToken("garbage", "919876543210", NOW, SECRET), null);
++});
++
++test("which bookings need a code", () => {
++  assert.deepEqual(bookingCheck(false, "+91", false, null), { ok: true, phoneVerified: null, verifiedVia: null });
++  assert.deepEqual(bookingCheck(true, "+91", true, { channel: "whatsapp" }), { ok: true, phoneVerified: true, verifiedVia: "whatsapp" });
++  assert.deepEqual(bookingCheck(true, "+91", true, null), { ok: false }); // bad or expired token
++  assert.deepEqual(bookingCheck(true, "+91", false, null), { ok: false });
++  assert.deepEqual(bookingCheck(true, "+44", false, null), { ok: true, phoneVerified: false, verifiedVia: null });
++});
++
++test("confirmation channel", () => {
++  assert.equal(confirmationChannel("+91", true, "whatsapp"), "whatsapp");
++  assert.equal(confirmationChannel("+91", true, "sms"), "sms");
++  assert.equal(confirmationChannel("+91", false, null), "sms");
++  assert.equal(confirmationChannel("+44", false, null), null);
++  assert.equal(confirmationChannel("+44", true, null), "whatsapp");
++});
++
++test("MSG91 senders against a fake MSG91", async () => {
++  const calls: { url: string; init: RequestInit }[] = [];
++  let reply: () => Promise<Response> = async () => Response.json({ status: "success", hasError: false });
++  globalThis.fetch = (async (url: string, init: RequestInit) => {
++    calls.push({ url, init });
++    return reply();
++  }) as typeof fetch;
++
++  delete process.env.MSG91_AUTH_KEY;
++  assert.equal(await sendWhatsAppTemplate("919876543210", "otp", ["123456"], "123456"), false);
++  assert.equal(calls.length, 0, "not configured: no request");
++
++  Object.assign(process.env, { MSG91_AUTH_KEY: "k", NEXT_PUBLIC_WHATSAPP_NUMBER: "919800000000", MSG91_WA_NAMESPACE: "ns" });
++  assert.equal(await sendWhatsAppTemplate("919876543210", "otp", ["123456"], "123456"), true);
++  const sent = JSON.parse(String(calls[0].init.body));
++  assert.equal(calls[0].url, "https://api.msg91.com/api/v5/whatsapp/whatsapp-outbound-message/bulk/");
++  assert.equal((calls[0].init.headers as Record<string, string>).authkey, "k");
++  assert.equal(sent.integrated_number, "919800000000");
++  assert.deepEqual(sent.payload.template.to_and_components, [{
++    to: ["919876543210"],
++    components: { body_1: { type: "text", value: "123456" }, button_1: { subtype: "url", type: "text", value: "123456" } },
++  }]);
++
++  reply = async () => Response.json({ type: "error", message: "Invalid template" }); // 200 with an error body
++  assert.equal(await sendWhatsAppTemplate("919876543210", "otp", ["123456"]), false);
++
++  reply = async () => { throw Object.assign(new Error("timed out"), { name: "TimeoutError" }); };
++  assert.equal(await sendSmsFlow("919876543210", "flow1", { otp: "123456" }), false);
++
++  reply = async () => Response.json({ type: "success", message: "3763646c" });
++  assert.equal(await sendSmsFlow("919876543210", "flow1", { otp: "123456" }), true);
++  assert.deepEqual(JSON.parse(String(calls.at(-1)!.init.body)), {
++    template_id: "flow1", short_url: "0", recipients: [{ mobiles: "919876543210", otp: "123456" }],
++  });
++  assert.equal(await sendSmsFlow("919876543210", undefined, { otp: "1" }), false); // flow not configured
++});
+diff --git b/website/src/lib/otp.ts b/website/src/lib/otp.ts
+new file mode 100644
+index 0000000..c4f3f50
+--- /dev/null
++++ b/website/src/lib/otp.ts
+@@ -0,0 +1,112 @@
++import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
++
++// Booking OTP rules. Pure functions only (no DB, no network) so they can be checked in otp.test.ts.
++export const OTP = {
++  length: 6,
++  codeTtlSec: 600,
++  cooldownSec: 30,
++  maxPerPhone: 3,
++  phoneWindowSec: 900,
++  maxPerIp: 10,
++  ipWindowSec: 3600,
++  maxAttempts: 5,
++  tokenTtlSec: 900,
++} as const;
++
++export type Channel = "whatsapp" | "sms";
++
++export const otpEnabled = () => process.env.NEXT_PUBLIC_RESERVATION_OTP === "on";
++
++/** "+91", "98765 43210" → "919876543210" (country code + number, digits only), or null if invalid. */
++export function normalizePhone(phoneCode: string, phone: string): string | null {
++  if (!/^\+\d{1,4}$/.test(phoneCode)) return null;
++  const digits = phone.replace(/[\s-]/g, "");
++  const valid = phoneCode === "+91" ? /^[6-9]\d{9}$/.test(digits) : /^\d{6,14}$/.test(digits);
++  return valid ? phoneCode.slice(1) + digits : null;
++}
++
++export const newCode = () => randomInt(0, 10 ** OTP.length).toString().padStart(OTP.length, "0");
++
++// Keyed hash: a 6-digit code behind a plain hash could be brute-forced from a leaked row.
++export const hashCode = (phone: string, code: string, secret: string) =>
++  createHmac("sha256", secret).update(`${phone}:${code}`).digest("hex");
++
++function safeEqual(a: string, b: string) {
++  const x = Buffer.from(a);
++  const y = Buffer.from(b);
++  return x.length === y.length && timingSafeEqual(x, y);
++}
++
++export type SendDecision = { ok: true } | { ok: false; code: "OTP_COOLDOWN" | "OTP_SEND_LIMIT"; retryAfter: number };
++
++/** phoneSends / ipSends: times (ms) of earlier sends for this phone / this IP. */
++export function sendDecision(phoneSends: number[], ipSends: number[], now: number): SendDecision {
++  const last = Math.max(0, ...phoneSends);
++  if (now - last < OTP.cooldownSec * 1000) {
++    return { ok: false, code: "OTP_COOLDOWN", retryAfter: Math.ceil((last + OTP.cooldownSec * 1000 - now) / 1000) };
++  }
++  for (const [sends, max, windowSec] of [
++    [phoneSends, OTP.maxPerPhone, OTP.phoneWindowSec],
++    [ipSends, OTP.maxPerIp, OTP.ipWindowSec],
++  ] as const) {
++    const recent = sends.filter((t) => now - t < windowSec * 1000).sort((a, b) => a - b);
++    if (recent.length >= max) {
++      // Allowed again once enough of the oldest sends leave the window.
++      const freedAt = recent[recent.length - max] + windowSec * 1000;
++      return { ok: false, code: "OTP_SEND_LIMIT", retryAfter: Math.ceil((freedAt - now) / 1000) };
++    }
++  }
++  return { ok: true };
++}
++
++export type CodeRow = { codeHash: string; createdAt: number; attempts: number; consumed: boolean };
++export type VerifyDecision =
++  | { ok: true }
++  | { ok: false; code: "OTP_EXPIRED" | "OTP_TOO_MANY_ATTEMPTS"; wrongGuess: boolean }
++  | { ok: false; code: "OTP_WRONG"; attemptsLeft: number; wrongGuess: true };
++
++/** row: the latest code sent to this phone. wrongGuess tells the caller to count an attempt. */
++export function verifyDecision(row: CodeRow | null, codeHash: string, now: number): VerifyDecision {
++  if (!row || row.consumed || now - row.createdAt > OTP.codeTtlSec * 1000) {
++    return { ok: false, code: "OTP_EXPIRED", wrongGuess: false };
++  }
++  if (row.attempts >= OTP.maxAttempts) return { ok: false, code: "OTP_TOO_MANY_ATTEMPTS", wrongGuess: false };
++  if (safeEqual(row.codeHash, codeHash)) return { ok: true };
++  const attemptsLeft = OTP.maxAttempts - row.attempts - 1;
++  return attemptsLeft > 0
++    ? { ok: false, code: "OTP_WRONG", attemptsLeft, wrongGuess: true }
++    : { ok: false, code: "OTP_TOO_MANY_ATTEMPTS", wrongGuess: true };
++}
++
++/** 15-minute proof that `phone` passed OTP over `channel`: "<phone>.<channel>.<expiry>.<signature>". */
++export function signToken(phone: string, channel: Channel, now: number, secret: string): string {
++  const body = `${phone}.${channel}.${Math.floor(now / 1000) + OTP.tokenTtlSec}`;
++  return `${body}.${createHmac("sha256", secret).update(body).digest("base64url")}`;
++}
++
++export function readToken(token: string, phone: string, now: number, secret: string): { channel: Channel } | null {
++  const parts = token.split(".");
++  if (parts.length !== 4) return null;
++  const [tokenPhone, channel, expiry, signature] = parts;
++  const expected = createHmac("sha256", secret).update(`${tokenPhone}.${channel}.${expiry}`).digest("base64url");
++  if (!safeEqual(signature, expected) || tokenPhone !== phone || Number(expiry) * 1000 < now) return null;
++  return channel === "whatsapp" || channel === "sms" ? { channel } : null;
++}
++
++export type BookingCheck = { ok: true; phoneVerified: boolean | null; verifiedVia: Channel | null } | { ok: false };
++
++/**
++ * Switch off: not checked (null). Switch on: a valid token verifies; a bad token is refused;
++ * no token is refused for +91 and accepted as unverified for other country codes (staff confirm).
++ */
++export function bookingCheck(enabled: boolean, phoneCode: string, tokenGiven: boolean, token: { channel: Channel } | null): BookingCheck {
++  if (!enabled) return { ok: true, phoneVerified: null, verifiedVia: null };
++  if (tokenGiven) return token ? { ok: true, phoneVerified: true, verifiedVia: token.channel } : { ok: false };
++  return phoneCode === "+91" ? { ok: false } : { ok: true, phoneVerified: false, verifiedVia: null };
++}
++
++/** SMS when the guest verified by SMS or isn't on WhatsApp (India only); otherwise WhatsApp. */
++export function confirmationChannel(phoneCode: string, isWhatsApp: boolean, verifiedVia: Channel | null): Channel | null {
++  if (verifiedVia === "sms" || !isWhatsApp) return phoneCode === "+91" ? "sms" : null;
++  return "whatsapp";
++}
+diff --git a/website/src/lib/supabase/queries.ts b/website/src/lib/supabase/queries.ts
+index c38c9aa..6be4d28 100644
+--- a/website/src/lib/supabase/queries.ts
++++ b/website/src/lib/supabase/queries.ts
+@@ -77,6 +77,7 @@ function mapRestaurant(row: any): Restaurant {
+     hours: row.hours,
+     images: row.images || [],
+     instagramUrl: row.instagram_url || null,
++    menuPdfUrl: row.menu_pdf_url || null,
+   };
+ }
+ 
+diff --git b/website/supabase/migrations/014_reservation_contact_and_verification.sql b/website/supabase/migrations/014_reservation_contact_and_verification.sql
+new file mode 100644
+index 0000000..9c46e69
+--- /dev/null
++++ b/website/supabase/migrations/014_reservation_contact_and_verification.sql
+@@ -0,0 +1,154 @@
++-- Website bookings: email is optional (a phone OR an email is required) and phone verification is
++-- recorded. The new function is server-only (service role), so the API's OTP and validation checks
++-- can't be skipped with the public anon key.
++--
++-- Rollout without downtime: this adds the new function next to the old one. Deploy the code that
++-- calls it, then apply 017, which drops the old anon-callable function.
++-- p_phone_verified has no default on purpose: an 11-argument call can only match the old function.
++ALTER TABLE public.reservations ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN;
++COMMENT ON COLUMN public.reservations.phone_verified IS
++  'TRUE: code verified. FALSE: OTP was on but the guest booked without a code (staff confirm). NULL: not checked.';
++
++CREATE OR REPLACE FUNCTION public.create_restaurant_reservation(
++  p_restaurant_slug TEXT,
++  p_service_id UUID,
++  p_service_date DATE,
++  p_slot_time TIME,
++  p_party_size INTEGER,
++  p_guest_name TEXT,
++  p_guest_email TEXT,
++  p_phone_verified BOOLEAN,
++  p_guest_phone TEXT DEFAULT '',
++  p_guest_phone_code TEXT DEFAULT '+91',
++  p_is_whatsapp BOOLEAN DEFAULT FALSE,
++  p_special_requests TEXT DEFAULT NULL
++)
++RETURNS UUID
++LANGUAGE plpgsql
++SECURITY DEFINER
++SET search_path = public
++AS $$
++DECLARE
++  v_restaurant RECORD;
++  v_service RECORD;
++  v_open TIME;
++  v_close TIME;
++  v_override RECORD;
++  v_slot_offset INTEGER;
++  v_open_minute INTEGER;
++  v_close_minute INTEGER;
++  v_slot_minute INTEGER;
++  v_start TIMESTAMPTZ;
++  v_end TIMESTAMPTZ;
++  v_table_id UUID;
++  v_reservation_id UUID;
++  v_duration INTEGER;
++BEGIN
++  IF NULLIF(BTRIM(p_guest_name), '') IS NULL
++     OR (NULLIF(BTRIM(p_guest_email), '') IS NULL AND NULLIF(BTRIM(p_guest_phone), '') IS NULL)
++     OR p_party_size IS NULL OR p_party_size < 1 OR p_party_size > 50
++     OR p_slot_time IS NULL OR p_service_date IS NULL THEN
++    RAISE EXCEPTION USING MESSAGE = 'INVALID_RESERVATION', ERRCODE = '22023';
++  END IF;
++
++  SELECT r.id, r.timezone INTO v_restaurant
++    FROM public.restaurants r
++    WHERE r.slug = p_restaurant_slug AND r.is_active = TRUE;
++  IF v_restaurant.id IS NULL THEN
++    RAISE EXCEPTION USING MESSAGE = 'RESTAURANT_NOT_FOUND', ERRCODE = 'P0002';
++  END IF;
++
++  IF p_service_date < (NOW() AT TIME ZONE v_restaurant.timezone)::DATE THEN
++    RAISE EXCEPTION USING MESSAGE = 'SLOT_UNAVAILABLE', ERRCODE = 'P0001';
++  END IF;
++
++  SELECT s.* INTO v_service
++    FROM public.restaurant_services s
++    WHERE s.id = p_service_id AND s.restaurant_id = v_restaurant.id AND s.is_active = TRUE;
++  IF v_service.id IS NULL OR p_party_size NOT BETWEEN v_service.min_party_size AND v_service.max_party_size THEN
++    RAISE EXCEPTION USING MESSAGE = 'SLOT_UNAVAILABLE', ERRCODE = 'P0001';
++  END IF;
++
++  SELECT o.is_closed, o.opens_at, o.closes_at INTO v_override
++    FROM public.restaurant_service_date_overrides o
++    WHERE o.service_id = v_service.id AND o.service_date = p_service_date;
++  IF FOUND AND v_override.is_closed THEN
++    RAISE EXCEPTION USING MESSAGE = 'SLOT_UNAVAILABLE', ERRCODE = 'P0001';
++  END IF;
++  IF FOUND AND v_override.opens_at IS NOT NULL THEN
++    v_open := v_override.opens_at;
++    v_close := v_override.closes_at;
++  ELSE
++    SELECT h.opens_at, h.closes_at INTO v_open, v_close
++      FROM public.restaurant_service_hours h
++      WHERE h.service_id = v_service.id
++        AND h.day_of_week = EXTRACT(DOW FROM p_service_date)::SMALLINT;
++  END IF;
++
++  IF v_open IS NULL OR v_close IS NULL OR v_open = v_close THEN
++    RAISE EXCEPTION USING MESSAGE = 'SLOT_UNAVAILABLE', ERRCODE = 'P0001';
++  END IF;
++
++  v_open_minute := EXTRACT(HOUR FROM v_open)::INTEGER * 60 + EXTRACT(MINUTE FROM v_open)::INTEGER;
++  v_close_minute := EXTRACT(HOUR FROM v_close)::INTEGER * 60 + EXTRACT(MINUTE FROM v_close)::INTEGER;
++  IF v_close_minute <= v_open_minute THEN
++    v_close_minute := v_close_minute + 1440;
++  END IF;
++  v_slot_minute := EXTRACT(HOUR FROM p_slot_time)::INTEGER * 60 + EXTRACT(MINUTE FROM p_slot_time)::INTEGER;
++
++  IF v_slot_minute < v_open_minute OR v_slot_minute >= 1440 THEN
++    RAISE EXCEPTION USING MESSAGE = 'SLOT_UNAVAILABLE', ERRCODE = 'P0001';
++  END IF;
++
++  v_slot_offset := v_slot_minute - v_open_minute;
++  IF MOD(v_slot_offset, v_service.slot_interval_minutes) <> 0 THEN
++    RAISE EXCEPTION USING MESSAGE = 'SLOT_UNAVAILABLE', ERRCODE = 'P0001';
++  END IF;
++
++  v_duration := v_service.seating_duration_minutes + v_service.buffer_minutes;
++  IF v_slot_minute + v_duration > v_close_minute THEN
++    RAISE EXCEPTION USING MESSAGE = 'SLOT_UNAVAILABLE', ERRCODE = 'P0001';
++  END IF;
++
++  v_start := ((p_service_date + p_slot_time) AT TIME ZONE v_restaurant.timezone);
++  v_end := v_start + MAKE_INTERVAL(mins => v_duration);
++
++  SELECT t.id INTO v_table_id
++    FROM public.restaurant_floorplans f
++    JOIN public.restaurant_tables t ON t.floorplan_id = f.id
++    WHERE f.restaurant_id = v_restaurant.id AND f.is_active = TRUE
++      AND t.restaurant_id = v_restaurant.id AND t.is_active = TRUE
++      AND t.min_capacity <= p_party_size AND t.max_capacity >= p_party_size
++      AND NOT EXISTS (
++        SELECT 1 FROM public.reservation_table_assignments a
++        WHERE a.table_id = t.id AND a.released_at IS NULL
++          AND a.starts_at < v_end AND a.ends_at > v_start
++      )
++    ORDER BY (t.max_capacity - p_party_size), t.max_capacity, t.label
++    LIMIT 1
++    FOR UPDATE OF t SKIP LOCKED;
++
++  IF v_table_id IS NULL THEN
++    RAISE EXCEPTION USING MESSAGE = 'SLOT_UNAVAILABLE', ERRCODE = 'P0001';
++  END IF;
++
++  INSERT INTO public.reservations (
++    restaurant_id, service_id, guest_name, guest_email, guest_phone,
++    guest_phone_code, is_whatsapp, date, time, starts_at, ends_at,
++    party_size, status, source, special_requests, phone_verified
++  ) VALUES (
++    v_restaurant.id, v_service.id, BTRIM(p_guest_name), NULLIF(BTRIM(p_guest_email), ''),
++    COALESCE(p_guest_phone, ''), COALESCE(p_guest_phone_code, '+91'),
++    COALESCE(p_is_whatsapp, FALSE), p_service_date, TO_CHAR(p_slot_time, 'HH24:MI'),
++    v_start, v_end, p_party_size, 'confirmed', 'website', NULLIF(BTRIM(p_special_requests), ''), p_phone_verified
++  ) RETURNING id INTO v_reservation_id;
++
++  INSERT INTO public.reservation_table_assignments (reservation_id, table_id, starts_at, ends_at)
++  VALUES (v_reservation_id, v_table_id, v_start, v_end);
++
++  RETURN v_reservation_id;
++END;
++$$;
++
++REVOKE ALL ON FUNCTION public.create_restaurant_reservation(TEXT, UUID, DATE, TIME, INTEGER, TEXT, TEXT, BOOLEAN, TEXT, TEXT, BOOLEAN, TEXT) FROM PUBLIC, anon, authenticated;
++GRANT EXECUTE ON FUNCTION public.create_restaurant_reservation(TEXT, UUID, DATE, TIME, INTEGER, TEXT, TEXT, BOOLEAN, TEXT, TEXT, BOOLEAN, TEXT) TO service_role;
+diff --git b/website/supabase/migrations/015_restaurant_menu_pdf.sql b/website/supabase/migrations/015_restaurant_menu_pdf.sql
+new file mode 100644
+index 0000000..21375df
+--- /dev/null
++++ b/website/supabase/migrations/015_restaurant_menu_pdf.sql
+@@ -0,0 +1,34 @@
++-- One menu PDF per restaurant, opened by "See menu" on the site. A structured menu can replace it later.
++ALTER TABLE public.restaurants ADD COLUMN IF NOT EXISTS menu_pdf_url TEXT;
++
++-- Public bucket: anyone can open a menu by its URL; only admins can add, replace or remove files.
++INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
++VALUES ('restaurant-menus', 'restaurant-menus', TRUE, 10485760, ARRAY['application/pdf'])
++ON CONFLICT (id) DO UPDATE SET
++  public = TRUE,
++  file_size_limit = EXCLUDED.file_size_limit,
++  allowed_mime_types = EXCLUDED.allowed_mime_types;
++
++CREATE POLICY "Admins read restaurant menus" ON storage.objects
++  FOR SELECT TO authenticated USING (
++    bucket_id = 'restaurant-menus'
++    AND EXISTS (SELECT 1 FROM public.admin_profiles ap WHERE ap.id = auth.uid())
++  );
++CREATE POLICY "Admins upload restaurant menus" ON storage.objects
++  FOR INSERT TO authenticated WITH CHECK (
++    bucket_id = 'restaurant-menus'
++    AND EXISTS (SELECT 1 FROM public.admin_profiles ap WHERE ap.id = auth.uid())
++  );
++CREATE POLICY "Admins update restaurant menus" ON storage.objects
++  FOR UPDATE TO authenticated USING (
++    bucket_id = 'restaurant-menus'
++    AND EXISTS (SELECT 1 FROM public.admin_profiles ap WHERE ap.id = auth.uid())
++  ) WITH CHECK (
++    bucket_id = 'restaurant-menus'
++    AND EXISTS (SELECT 1 FROM public.admin_profiles ap WHERE ap.id = auth.uid())
++  );
++CREATE POLICY "Admins delete restaurant menus" ON storage.objects
++  FOR DELETE TO authenticated USING (
++    bucket_id = 'restaurant-menus'
++    AND EXISTS (SELECT 1 FROM public.admin_profiles ap WHERE ap.id = auth.uid())
++  );
+diff --git b/website/supabase/migrations/016_phone_verifications.sql b/website/supabase/migrations/016_phone_verifications.sql
+new file mode 100644
+index 0000000..68df3c6
+--- /dev/null
++++ b/website/supabase/migrations/016_phone_verifications.sql
+@@ -0,0 +1,18 @@
++-- One row per booking code sent. Server-only: RLS on with no policies, so only the service role
++-- (the /api/otp routes) can read or write it. Rows older than a day are purged by /api/otp/send.
++CREATE TABLE IF NOT EXISTS public.phone_verifications (
++  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
++  phone TEXT NOT NULL, -- country code + number, digits only
++  ip TEXT NOT NULL DEFAULT '',
++  channel TEXT NOT NULL CHECK (channel IN ('whatsapp', 'sms')),
++  code_hash TEXT NOT NULL,
++  attempts SMALLINT NOT NULL DEFAULT 0,
++  consumed_at TIMESTAMPTZ,
++  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
++);
++
++CREATE INDEX IF NOT EXISTS phone_verifications_phone_created_idx ON public.phone_verifications (phone, created_at DESC);
++CREATE INDEX IF NOT EXISTS phone_verifications_ip_created_idx ON public.phone_verifications (ip, created_at DESC);
++
++ALTER TABLE public.phone_verifications ENABLE ROW LEVEL SECURITY;
++REVOKE ALL ON public.phone_verifications FROM anon, authenticated;
+diff --git b/website/supabase/migrations/017_drop_public_reservation_function.sql b/website/supabase/migrations/017_drop_public_reservation_function.sql
+new file mode 100644
+index 0000000..6a4cb6f
+--- /dev/null
++++ b/website/supabase/migrations/017_drop_public_reservation_function.sql
+@@ -0,0 +1,3 @@
++-- Apply AFTER the code that calls the server-only function (014) is deployed.
++-- Removes the old booking function that anyone could call with the public anon key.
++DROP FUNCTION IF EXISTS public.create_restaurant_reservation(TEXT, UUID, DATE, TIME, INTEGER, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT);
