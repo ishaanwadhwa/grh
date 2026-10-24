@@ -1,10 +1,11 @@
 "use client";
 
+import { Empty, Loading } from "./ui";
+
 export interface Column<T> {
-  key: keyof T | string;
+  key: string;
   header: string;
-  render?: (row: T) => React.ReactNode;
-  width?: string;
+  render: (row: T) => React.ReactNode;
 }
 
 interface DataTableProps<T> {
@@ -12,58 +13,37 @@ interface DataTableProps<T> {
   data: T[];
   loading?: boolean;
   emptyMessage?: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  emptySub?: string;
   keyExtractor: (row: T) => string;
 }
 
+// Rows read like DLS list items: hairlines between rows only, first column in Body Strong.
 export default function DataTable<T>({
   columns,
   data,
   loading,
-  emptyMessage = "No data yet.",
+  emptyMessage = "Nothing here yet.",
+  emptySub,
   keyExtractor,
 }: DataTableProps<T>) {
-  if (loading) {
-    return (
-      <div className="py-16 text-center text-sm text-text/30">Loading...</div>
-    );
-  }
-
-  if (data.length === 0) {
-    return (
-      <div className="py-16 text-center text-sm text-text/30">{emptyMessage}</div>
-    );
-  }
+  if (loading) return <Loading />;
+  if (data.length === 0) return <Empty title={emptyMessage} sub={emptySub} />;
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+    <div className="table-wrap">
+      <table className="table">
         <thead>
-          <tr className="border-b border-border-subtle">
+          <tr>
             {columns.map((col) => (
-              <th
-                key={String(col.key)}
-                className="px-4 py-3 text-left text-xs uppercase tracking-widest text-text/40 font-medium"
-                style={{ width: col.width }}
-              >
-                {col.header}
-              </th>
+              <th key={col.key}>{col.header}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {data.map((row) => (
-            <tr
-              key={keyExtractor(row)}
-              className="border-b border-border-subtle/50 hover:bg-background transition-colors"
-            >
-              {columns.map((col) => (
-                <td key={String(col.key)} className="px-4 py-3 text-text/70">
-                  {col.render
-                    ? col.render(row)
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    : String((row as any)[col.key] ?? "")}
-                </td>
+            <tr key={keyExtractor(row)}>
+              {columns.map((col, i) => (
+                <td key={col.key} className={i === 0 ? "strong" : undefined}>{col.render(row)}</td>
               ))}
             </tr>
           ))}

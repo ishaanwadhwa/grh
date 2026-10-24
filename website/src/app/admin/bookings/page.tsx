@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createBrowserClient } from "@supabase/ssr";
+import { createClient } from "@/lib/supabase/client";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import DataTable, { type Column } from "@/components/admin/DataTable";
+import { PageHeader, StatusTag, fmtDate, fmtMoney, plural, sourceLabel, useNotice } from "@/components/admin/ui";
 
 interface BookingRow {
   id: string;
@@ -24,23 +26,16 @@ interface BookingRow {
   properties?: { name: string } | null;
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  confirmed: "bg-green-50 text-green-700",
-  pending: "bg-yellow-50 text-yellow-700",
-  cancelled: "bg-red-50 text-red-600",
-  completed: "bg-blue-50 text-blue-700",
-};
+const FILTERS = [["all", "All"], ["confirmed", "Confirmed"], ["pending", "Pending"], ["cancelled", "Cancelled"], ["completed", "Finished"]] as const;
 
 export default function AdminBookingsPage() {
   const [bookings, setBookings] = useState<BookingRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "failed">("loading");
   const [filter, setFilter] = useState("all");
   const [cancelTarget, setCancelTarget] = useState<BookingRow | null>(null);
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const { fail, snackbar } = useNotice();
+  const supabase = createClient();
 
   useEffect(() => {
     let query = supabase
@@ -52,111 +47,95 @@ export default function AdminBookingsPage() {
       query = query.eq("status", filter);
     }
 
-    query.then(({ data }) => {
-      setBookings(data || []);
-      setLoading(false);
+    query.then(({ data, error }) => {
+      if (error) { fail(error); setLoadState("failed"); return; }
+      setBookings(data);
+      setLoadState("ready");
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter]);
+  }, [filter, supabase, fail]);
 
   const handleCancel = async () => {
     if (!cancelTarget) return;
-    await supabase.from("bookings").update({ status: "cancelled" }).eq("id", cancelTarget.id);
-    setBookings((prev) => prev.map((b) => b.id === cancelTarget.id ? { ...b, status: "cancelled" } : b));
+    const { error } = await supabase.from("bookings").update({ status: "cancelled" }).eq("id", cancelTarget.id);
+    if (error) fail(error);
+    else setBookings((prev) => prev.map((b) => b.id === cancelTarget.id ? { ...b, status: "cancelled" } : b));
     setCancelTarget(null);
   };
 
   const nights = (checkIn: string, checkOut: string) =>
     Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000);
 
+  const columns: Column<BookingRow>[] = [
+    {
+      key: "guest_name",
+      header: "Guest",
+      render: (b) => (
+        <>
+          {b.guest_name}
+          {b.guest_email && <p className="t-sub break-all">{b.guest_email}</p>}
+          {b.guest_phone && <p className="t-sub">{b.guest_phone_code} {b.guest_phone}{b.is_whatsapp ? " (WhatsApp)" : ""}</p>}
+        </>
+      ),
+    },
+    { key: "room", header: "Room", render: (b) => b.rooms?.name || "—" },
+    {
+      key: "dates",
+      header: "Dates",
+      render: (b) => (
+        <>
+          <p className="whitespace-nowrap">{fmtDate(b.check_in)} – {fmtDate(b.check_out)}</p>
+          <p className="t-cap">{plural(nights(b.check_in, b.check_out), "night")}</p>
+        </>
+      ),
+    },
+    { key: "guests", header: "Guests", render: (b) => <span className="t-num">{b.guests}</span> },
+    { key: "amount", header: "Amount", render: (b) => <span className="t-num whitespace-nowrap text-(--ink)">{fmtMoney(b.total_amount, b.currency)}</span> },
+    { key: "source", header: "Source", render: (b) => sourceLabel(b.source) },
+    { key: "status", header: "Status", render: (b) => <StatusTag status={b.status} /> },
+    {
+      key: "actions",
+      header: "",
+      render: (b) => b.status !== "cancelled" && b.status !== "completed" && (
+        <button type="button" onClick={() => setCancelTarget(b)} className="btn btn-danger btn-sm">Cancel</button>
+      ),
+    },
+  ];
+  const filterLabel = FILTERS.find(([status]) => status === filter)?.[1].toLowerCase();
+
   return (
-    <div className="p-4 md:p-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <div>
-          <h1 className="font-display text-2xl text-text">Bookings</h1>
-          <p className="mt-1 text-sm text-text/40">{bookings.length} total</p>
-        </div>
-        {/* Filter */}
-        <div className="flex flex-wrap gap-1 border border-border-subtle p-0.5">
-          {["all", "confirmed", "pending", "cancelled", "completed"].map((s) => (
-            <button
-              key={s}
-              onClick={() => setFilter(s)}
-              className={`px-3 py-1.5 text-xs capitalize transition-all ${filter === s ? "bg-text text-text-inverse" : "text-text/50 hover:text-text"}`}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
+    <div className="page">
+      <PageHeader title="Room bookings" sub={loadState === "ready" ? plural(bookings.length, "booking") : undefined} />
+
+      <div className="pills" role="group" aria-label="Filter by status">
+        {FILTERS.map(([status, label]) => (
+          <button key={status} type="button" className="pill" aria-pressed={filter === status} onClick={() => setFilter(status)}>
+            {label}
+          </button>
+        ))}
       </div>
 
-      <div className="bg-white border border-border-subtle overflow-x-auto">
-        {loading ? (
-          <p className="p-8 text-sm text-text/30">Loading...</p>
-        ) : bookings.length === 0 ? (
-          <p className="p-8 text-sm text-text/30">No bookings found.</p>
-        ) : (
-          <table className="w-full text-sm min-w-[900px]">
-            <thead>
-              <tr className="border-b border-border-subtle">
-                {["Guest", "Room", "Dates", "Guests", "Amount", "Source", "Status", ""].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-xs uppercase tracking-widest text-text/40">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {bookings.map((b) => (
-                <tr key={b.id} className="border-b border-border-subtle/50 hover:bg-background transition-colors">
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-text">{b.guest_name}</p>
-                    <p className="text-xs text-text/40">{b.guest_email}</p>
-                    {b.guest_phone && (
-                      <p className="text-xs text-text/30 flex items-center gap-1">
-                        {b.guest_phone_code} {b.guest_phone}
-                        {b.is_whatsapp && <span className="text-green-500">·WA</span>}
-                      </p>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-text/60 text-xs">{b.rooms?.name || "—"}</td>
-                  <td className="px-4 py-3">
-                    <p className="text-xs text-text/70">{b.check_in} → {b.check_out}</p>
-                    <p className="text-xs text-text/30">{nights(b.check_in, b.check_out)} nights</p>
-                  </td>
-                  <td className="px-4 py-3 text-text/50 text-center">{b.guests}</td>
-                  <td className="px-4 py-3">
-                    <p className="text-sm text-text font-medium">{b.currency} {b.total_amount.toLocaleString()}</p>
-                  </td>
-                  <td className="px-4 py-3 text-text/40 text-xs capitalize">{b.source}</td>
-                  <td className="px-4 py-3">
-                    <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 ${STATUS_COLORS[b.status] || "bg-background text-text/40"}`}>
-                      {b.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    {b.status !== "cancelled" && b.status !== "completed" && (
-                      <button
-                        onClick={() => setCancelTarget(b)}
-                        className="text-xs text-accent hover:underline"
-                      >
-                        Cancel
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      {loadState !== "failed" && (
+        <div className="card flush">
+          <DataTable
+            columns={columns}
+            data={bookings}
+            loading={loadState === "loading"}
+            keyExtractor={(b) => b.id}
+            emptyMessage={filter === "all" ? "No room bookings yet" : `No ${filterLabel} bookings`}
+            emptySub={filter === "all" ? "Stays booked on the website show up here." : "Try another filter to see the rest."}
+          />
+        </div>
+      )}
 
       <ConfirmDialog
         open={!!cancelTarget}
-        title="Cancel Booking"
-        message={`Cancel booking for "${cancelTarget?.guest_name}"? This will free up the room.`}
-        confirmLabel="Cancel Booking"
+        title="Cancel booking"
+        message={`Cancel the booking for ${cancelTarget?.guest_name}? The room will be free again.`}
+        confirmLabel="Cancel booking"
         onConfirm={handleCancel}
         onCancel={() => setCancelTarget(null)}
       />
+      {snackbar}
     </div>
   );
 }

@@ -1,349 +1,160 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { createBrowserClient } from "@supabase/ssr";
-import ConfirmDialog from "@/components/admin/ConfirmDialog";
-import NewBookingPanel from "@/components/admin/NewBookingPanel";
-import { friendlyError } from "@/lib/reservations/adminErrors";
+// Reservations: every table booking, by day. Read, call, cancel.
+// Seating and table moves happen in one place only: the live floor.
 
-interface TableOption {
-  id: string;
-  restaurant_id: string;
-  label: string;
-  max_capacity: number;
-  zone: string;
-}
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
+import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import { ENDED, needsTable } from "@/components/admin/floor";
+import { Empty, Loading, PageHeader, StatusTag, fmtDay, fmtTime, plural, sourceLabel, todayIn, useNotice } from "@/components/admin/ui";
 
 interface ReservationRow {
   id: string;
   restaurant_id: string;
-  service_id: string | null;
-  starts_at: string | null;
-  ends_at: string | null;
   guest_name: string;
-  guest_email: string;
+  guest_email: string | null;
   guest_phone: string;
   guest_phone_code: string;
   is_whatsapp: boolean;
+  phone_verified: boolean | null;
   date: string;
   time: string;
   party_size: number;
   status: string;
   source: string;
   special_requests: string | null;
-  needs_attention: boolean;
-  attention_reason: string | null;
-  created_at: string;
   restaurants?: { name: string } | null;
+  reservation_table_assignments?: { released_at: string | null; restaurant_tables: { label: string } | null }[] | null;
 }
 
-interface SuggestOption {
-  table_ids: string[];
-  labels: string[];
-  total_capacity: number;
-  fits_unassigned: boolean;
-}
+/** Table names held right now, from the assignments fetched with the booking. */
+const tablesHeld = (r: ReservationRow) => (r.reservation_table_assignments || []).filter((a) => !a.released_at).map((a) => a.restaurant_tables?.label || "?");
 
-interface Suggestion {
-  options: SuggestOption[];
-}
-
-const ACTIVE_STATUSES = ["pending", "confirmed", "arrived", "seated"];
-
-interface AssignmentRow {
-  reservation_id: string;
-  table_id: string;
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  confirmed: "bg-green-50 text-green-700",
-  pending: "bg-yellow-50 text-yellow-700",
-  cancelled: "bg-red-50 text-red-600",
-};
+type Filter = "upcoming" | "past" | "cancelled" | "all";
+const FILTERS: [Filter, string][] = [["upcoming", "Upcoming"], ["past", "Past"], ["cancelled", "Cancelled"], ["all", "All"]];
+const LIMIT = 200; // past and all can run long; the newest come first
 
 export default function AdminReservationsPage() {
-  const supabase = useMemo(() => createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  ), []);
+  const supabase = createClient();
+  const today = todayIn();
   const [reservations, setReservations] = useState<ReservationRow[]>([]);
-  const [tables, setTables] = useState<TableOption[]>([]);
-  const [assignments, setAssignments] = useState<Record<string, string[]>>({});
-  const [selection, setSelection] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState<Filter>("upcoming");
   const [cancelTarget, setCancelTarget] = useState<ReservationRow | null>(null);
-  const [savingId, setSavingId] = useState("");
-  const [notice, setNotice] = useState("");
-  const [newBookingOpen, setNewBookingOpen] = useState(false);
-  const [suggestions, setSuggestions] = useState<Record<string, Suggestion>>({});
-  const [overridable, setOverridable] = useState<string>("");
+  const { say, fail, snackbar } = useNotice();
 
   const load = useCallback(async () => {
-    let query = supabase
-      .from("reservations")
-      .select("*, restaurants(name)")
-      .order("date", { ascending: true })
-      .order("time", { ascending: true });
-    if (filter !== "all") query = query.eq("status", filter);
-
-    const [{ data: rows, error }, { data: tableRows }] = await Promise.all([
-      query,
-      supabase.from("restaurant_tables").select("id, restaurant_id, label, max_capacity, zone").eq("is_active", true).order("label"),
-    ]);
-    if (error) {
-      setNotice(error.message);
-      setReservations([]);
-      setLoading(false);
-      return;
-    }
-
-    const reservationRows = (rows || []) as ReservationRow[];
-    setReservations(reservationRows);
-    setTables((tableRows || []) as TableOption[]);
-
-    const nextAssignments: Record<string, string[]> = {};
-    if (reservationRows.length) {
-      const { data: assignedRows } = await supabase
-        .from("reservation_table_assignments")
-        .select("reservation_id, table_id")
-        .is("released_at", null)
-        .in("reservation_id", reservationRows.map((row) => row.id));
-      for (const assignment of (assignedRows || []) as AssignmentRow[]) {
-        nextAssignments[assignment.reservation_id] = [...(nextAssignments[assignment.reservation_id] || []), assignment.table_id];
-      }
-    }
-    setAssignments(nextAssignments);
-    setSelection(nextAssignments);
-
-    // Preselect a suggestion for every active, unassigned reservation so the
-    // table picker opens with a sensible default instead of a blank grid.
-    const unassigned = reservationRows.filter((row) => ACTIVE_STATUSES.includes(row.status) && !nextAssignments[row.id]?.length && row.service_id);
-    if (unassigned.length) {
-      const results = await Promise.all(unassigned.map((row) => supabase.rpc("suggest_tables", {
-        p_restaurant_id: row.restaurant_id,
-        p_service_id: row.service_id,
-        p_date: row.date,
-        p_time: row.time,
-        p_party_size: row.party_size,
-        p_exclude_reservation_id: row.id,
-      }).then(({ data }) => ({ id: row.id, suggestion: data as Suggestion | null }))));
-
-      const nextSuggestions: Record<string, Suggestion> = {};
-      const preselected: Record<string, string[]> = {};
-      for (const result of results) {
-        if (result.suggestion) {
-          nextSuggestions[result.id] = result.suggestion;
-          const topOption = result.suggestion.options?.[0];
-          if (topOption) preselected[result.id] = topOption.table_ids;
-        }
-      }
-      setSuggestions(nextSuggestions);
-      if (Object.keys(preselected).length) {
-        setSelection((current) => ({ ...current, ...preselected }));
-      }
-    } else {
-      setSuggestions({});
-    }
-
+    const past = filter === "past" || filter === "all";
+    let query = supabase.from("reservations")
+      .select("*, restaurants(name), reservation_table_assignments(released_at, restaurant_tables(label))")
+      .order("date", { ascending: !past }).order("time", { ascending: !past }).limit(LIMIT);
+    if (filter === "upcoming") query = query.gte("date", today).neq("status", "cancelled");
+    if (filter === "past") query = query.lt("date", today).neq("status", "cancelled");
+    if (filter === "cancelled") query = query.eq("status", "cancelled");
+    const { data, error } = await query;
+    if (error) fail(error);
+    setReservations((data || []) as ReservationRow[]);
     setLoading(false);
-  }, [filter, supabase]);
+  }, [filter, supabase, today, fail]);
 
-  // Loading remote reservation data is an intentional effect-driven state sync.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(); }, [load]);
-
-  const toggleTable = (reservationId: string, tableId: string) => {
-    setSelection((current) => {
-      const chosen = current[reservationId] || [];
-      const updated = chosen.includes(tableId)
-        ? chosen.filter((id) => id !== tableId)
-        : [...chosen, tableId];
-      return { ...current, [reservationId]: updated };
-    });
-  };
-
-  const saveAssignment = async (reservation: ReservationRow, allowOverride = false) => {
-    const tableIds = selection[reservation.id] || [];
-    if (!tableIds.length) {
-      setNotice("Select at least one table, or use Unassign to leave this booking with no table.");
-      return;
-    }
-    setSavingId(reservation.id);
-    setNotice("");
-    setOverridable("");
-    const { error } = await supabase.rpc("set_reservation_tables", {
-      p_reservation_id: reservation.id,
-      p_table_ids: tableIds,
-      p_allow_override: allowOverride,
-    });
-    if (error) {
-      const mapped = friendlyError(error.message);
-      setNotice(mapped.text);
-      if (mapped.overridable) setOverridable(reservation.id);
-    } else {
-      setAssignments((current) => ({ ...current, [reservation.id]: tableIds }));
-      setNotice(`Tables saved for ${reservation.guest_name}.`);
-      void load();
-    }
-    setSavingId("");
-  };
-
-  const unassignTable = async (reservation: ReservationRow, allowOverride = false) => {
-    setSavingId(reservation.id);
-    setNotice("");
-    setOverridable("");
-    const { error } = await supabase.rpc("set_reservation_tables", {
-      p_reservation_id: reservation.id,
-      p_table_ids: [],
-      p_allow_override: allowOverride,
-    });
-    if (error) {
-      const mapped = friendlyError(error.message);
-      setNotice(mapped.text);
-      if (mapped.overridable) setOverridable(reservation.id);
-    } else {
-      setAssignments((current) => ({ ...current, [reservation.id]: [] }));
-      setSelection((current) => ({ ...current, [reservation.id]: [] }));
-      setNotice(`${reservation.guest_name} is now unassigned.`);
-      void load();
-    }
-    setSavingId("");
-  };
 
   const handleCancel = async () => {
     if (!cancelTarget) return;
-    const { error } = await supabase.from("reservations").update({ status: "cancelled" }).eq("id", cancelTarget.id);
-    if (error) setNotice(error.message);
-    else {
-      setReservations((current) => current.map((row) => row.id === cancelTarget.id ? { ...row, status: "cancelled" } : row));
-      setAssignments((current) => ({ ...current, [cancelTarget.id]: [] }));
-      setSelection((current) => ({ ...current, [cancelTarget.id]: [] }));
-      setNotice("Reservation cancelled and its table released.");
-    }
+    const target = cancelTarget;
     setCancelTarget(null);
+    const { error } = await supabase.from("reservations").update({ status: "cancelled" }).eq("id", target.id);
+    if (error) { fail(error); return; }
+    setReservations((current) => filter === "all"
+      ? current.map((r) => r.id === target.id ? { ...r, status: "cancelled", reservation_table_assignments: [] } : r)
+      : current.filter((r) => r.id !== target.id));
+    say(`${target.guest_name}'s booking cancelled. The table is free.`);
   };
 
-  return (
-    <div className="mx-auto max-w-6xl p-4 pb-12 md:p-8">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-display text-2xl text-text">Reservations</h1>
-          <p className="mt-1 text-sm text-text/40">{reservations.length} reservations · assign tables below</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <button onClick={() => setNewBookingOpen(true)} className="min-h-10 rounded bg-accent px-4 text-xs font-medium uppercase tracking-wide text-white">+ New booking</button>
-          <div className="flex flex-wrap gap-1 border border-border-subtle p-0.5">
-            {["all", "confirmed", "pending", "cancelled"].map((status) => (
-              <button key={status} onClick={() => { setLoading(true); setFilter(status); }} className={`min-h-10 px-3 text-xs capitalize ${filter === status ? "bg-text text-white" : "text-text/50"}`}>
-                {status}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+  const waiting = (r: ReservationRow) => r.date >= today && needsTable(r, tablesHeld(r));
+  const needTable = reservations.filter(waiting).length;
+  const byDay = reservations.reduce<Record<string, ReservationRow[]>>((acc, r) => { (acc[r.date] ||= []).push(r); return acc; }, {});
 
-      <NewBookingPanel
-        open={newBookingOpen}
-        onClose={() => setNewBookingOpen(false)}
-        onCreated={() => void load()}
+  return (
+    <div className="page">
+      <PageHeader
+        title="Reservations"
+        sub={loading ? undefined : filter === "upcoming" ? `${plural(reservations.length, "upcoming booking")}${needTable ? ` · ${needTable} need a table` : ""}` : plural(reservations.length, "booking")}
+        actions={<Link href="/admin/service" className="btn btn-secondary">Open live floor</Link>}
       />
 
-      {notice && <p className="mb-4 rounded border border-border-subtle bg-white p-3 text-sm text-text/60" role="status">{notice}</p>}
+      <div className="pills" role="group" aria-label="Show">
+        {FILTERS.map(([key, label]) => (
+          <button key={key} type="button" className="pill" aria-pressed={filter === key} onClick={() => { setLoading(true); setFilter(key); }}>{label}</button>
+        ))}
+      </div>
 
-      {loading ? <p className="rounded border border-border-subtle bg-white p-6 text-sm text-text/40">Loading reservations…</p>
-        : reservations.length === 0 ? <p className="rounded border border-border-subtle bg-white p-6 text-sm text-text/40">No reservations found.</p>
-          : <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            {reservations.map((reservation) => {
-              const assignedIds = assignments[reservation.id] || [];
-              const restaurantTables = tables.filter((table) => table.restaurant_id === reservation.restaurant_id);
-              const dirty = JSON.stringify([...(selection[reservation.id] || [])].sort()) !== JSON.stringify([...assignedIds].sort());
-              return (
-                <article key={reservation.id} className="rounded border border-border-subtle bg-white p-4 md:p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h2 className="truncate font-medium text-text">{reservation.guest_name}</h2>
-                      <p className="mt-1 break-all text-xs text-text/50">{reservation.guest_email}</p>
-                      {reservation.guest_phone && <p className="mt-1 text-xs text-text/40">{reservation.guest_phone_code} {reservation.guest_phone}{reservation.is_whatsapp ? " · WhatsApp" : ""}</p>}
-                    </div>
-                    <div className="flex shrink-0 flex-col items-end gap-1">
-                      <span className={`rounded px-2 py-1 text-[10px] uppercase tracking-wider ${STATUS_COLORS[reservation.status] || "bg-background text-text/40"}`}>{reservation.status}</span>
-                      {ACTIVE_STATUSES.includes(reservation.status) && !assignedIds.length && (
-                        <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[9px] uppercase tracking-wide text-accent">No table</span>
-                      )}
-                      {reservation.needs_attention && (
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] uppercase tracking-wide text-amber-800">Needs attention</span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-2 gap-3 border-y border-border-subtle/70 py-3 text-sm">
-                    <div><p className="text-[10px] uppercase tracking-widest text-text/35">Restaurant</p><p className="mt-1 text-text/70">{reservation.restaurants?.name || "—"}</p></div>
-                    <div><p className="text-[10px] uppercase tracking-widest text-text/35">Date & time</p><p className="mt-1 text-text/70">{reservation.date} · {reservation.time}</p></div>
-                    <div><p className="text-[10px] uppercase tracking-widest text-text/35">Party</p><p className="mt-1 text-text/70">{reservation.party_size} guests</p></div>
-                    <div><p className="text-[10px] uppercase tracking-widest text-text/35">Channel</p><p className="mt-1 capitalize text-text/70">{reservation.source}</p></div>
-                  </div>
-
-                  {reservation.special_requests && <p className="mt-3 text-xs text-text/50">Note: {reservation.special_requests}</p>}
-
-                  {reservation.status !== "cancelled" && (
-                    <div className="mt-4">
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-xs font-medium text-text">Table assignment</h3>
-                        <Link href={`/admin/restaurants/${reservation.restaurant_id}/floorplan`} className="text-[10px] text-text/40 underline">Open floor plan</Link>
-                      </div>
-                      {suggestions[reservation.id]?.options?.[0] && !assignedIds.length && (
-                        <p className="mt-1 text-[11px] text-accent-olive">
-                          {`Suggested: ${suggestions[reservation.id].options[0].labels.join("+")} (${suggestions[reservation.id].options[0].total_capacity} seats) \u2014 preselected below.`}
+      {loading ? <Loading /> : reservations.length === 0 ? (
+        <section className="card">
+          <Empty
+            title={filter === "upcoming" ? "No upcoming bookings" : filter === "cancelled" ? "No cancellations" : "No bookings here"}
+            sub={filter === "upcoming" ? "New bookings from the website land here and on the live floor." : undefined}
+          />
+        </section>
+      ) : (
+        <div className="stack">
+          {Object.entries(byDay).map(([date, rows]) => (
+            <section key={date} className="card flush">
+              <div className="card-head">
+                <h2 className="t-h4">{date === today ? `Today · ${fmtDay(date)}` : fmtDay(date)}</h2>
+                <p className="t-sub">{plural(rows.reduce((s, r) => s + r.party_size, 0), "guest")}</p>
+              </div>
+              <div className="rows">
+                {rows.map((r) => {
+                  const tables = tablesHeld(r);
+                  const live = r.date >= today && !ENDED.includes(r.status);
+                  return (
+                    <div key={r.id} className="row items-start">
+                      <span className="t-h4 w-[76px] shrink-0">{fmtTime(r.time)}</span>
+                      <div className="row-main">
+                        <p className="row-title">{r.guest_name}</p>
+                        <p className="row-sub">
+                          {plural(r.party_size, "guest")}
+                          {r.restaurants?.name ? ` · ${r.restaurants.name}` : ""}
+                          {tables.length ? ` · ${tables.join(", ")}` : ""}
+                          {` · ${sourceLabel(r.source)}`}
                         </p>
-                      )}
-                      {restaurantTables.length ? (
-                        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                          {restaurantTables.map((table) => {
-                            const checked = (selection[reservation.id] || []).includes(table.id);
-                            return (
-                              <label key={table.id} className={`flex min-h-11 cursor-pointer items-center gap-2 rounded border px-3 py-2 text-xs ${checked ? "border-emerald-700 bg-emerald-50 text-emerald-900" : "border-border-subtle text-text/60"}`}>
-                                <input type="checkbox" checked={checked} onChange={() => toggleTable(reservation.id, table.id)} />
-                                <span className="min-w-0 truncate">{table.label} · {table.max_capacity} seats{table.zone ? ` · ${table.zone}` : ""}</span>
-                              </label>
-                            );
-                          })}
+                        <p className="row-sub">
+                          {r.guest_phone
+                            ? <a className="link font-normal" href={`tel:${r.guest_phone_code}${r.guest_phone}`}>{r.guest_phone_code} {r.guest_phone}</a>
+                            : r.guest_email}
+                          {r.guest_phone && r.is_whatsapp ? " · WhatsApp" : ""}
+                        </p>
+                        {r.special_requests && <p className="t-sub mt-1 text-(--ink-2)">“{r.special_requests}”</p>}
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          <StatusTag status={r.status} />
+                          {waiting(r) && <StatusTag status="needs_table" />}
+                          {r.phone_verified === false && <StatusTag status="unverified" title="Booked without a phone code. Confirm on WhatsApp." />}
                         </div>
-                      ) : <p className="mt-2 text-xs text-text/40">No tables yet. Upload a floor plan and configure tables first.</p>}
-                      <div className="mt-3 flex flex-wrap items-center gap-3">
-                        <button onClick={() => void saveAssignment(reservation)} disabled={!restaurantTables.length || !dirty || savingId === reservation.id} className="min-h-10 rounded bg-text px-4 text-xs uppercase tracking-widest text-white disabled:opacity-30">
-                          {savingId === reservation.id ? "Saving…" : "Save table assignment"}
-                        </button>
-                        {assignedIds.length > 0 && (
-                          <button onClick={() => void unassignTable(reservation)} disabled={savingId === reservation.id} className="min-h-10 rounded border border-border-subtle px-3 text-xs text-text/55 disabled:opacity-30">
-                            Unassign
-                          </button>
-                        )}
-                        {overridable === reservation.id && (
-                          <button onClick={() => void saveAssignment(reservation, true)} disabled={savingId === reservation.id} className="min-h-10 rounded bg-accent px-3 text-[10px] font-medium uppercase tracking-widest text-white disabled:opacity-40">
-                            Book anyway
-                          </button>
-                        )}
-                        {assignedIds.length > 0 && <p className="text-xs text-text/40">Assigned: {assignedIds.map((id) => restaurantTables.find((table) => table.id === id)?.label).filter(Boolean).join(", ")}</p>}
                       </div>
+                      {live && r.status !== "seated" && (
+                        <button type="button" onClick={() => setCancelTarget(r)} className="btn btn-danger btn-sm -mr-3 shrink-0">Cancel</button>
+                      )}
                     </div>
-                  )}
-
-                  {reservation.status !== "cancelled" && <button onClick={() => setCancelTarget(reservation)} className="mt-4 text-xs text-red-600 underline">Cancel reservation</button>}
-                </article>
-              );
-            })}
-          </div>}
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
 
       <ConfirmDialog
         open={!!cancelTarget}
-        title="Cancel Reservation"
-        message={`Cancel reservation for "${cancelTarget?.guest_name}"? Its table assignment will be released.`}
-        confirmLabel="Cancel Reservation"
-        onConfirm={handleCancel}
+        title="Cancel this booking?"
+        message={`${cancelTarget?.guest_name || "This guest"}'s table is released. Let them know on WhatsApp or a call.`}
+        confirmLabel="Cancel booking"
+        onConfirm={() => void handleCancel()}
         onCancel={() => setCancelTarget(null)}
       />
+      {snackbar}
     </div>
   );
 }
